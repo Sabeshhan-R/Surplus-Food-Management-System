@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import TrackingMap from '../components/TrackingMap';
 
 const API_URL = 'http://localhost:5000/api/listings';
 
@@ -25,6 +26,7 @@ const NgoDashboard = () => {
   const [availableDonations, setAvailableDonations] = useState([]);
   const [myRequests, setMyRequests] = useState([]);
   const [viewingListing, setViewingListing] = useState(null);
+  const [trackingItem, setTrackingItem] = useState(null);
 
   const [notifications, setNotifications] = useState([]);
   const [showToast, setShowToast] = useState(false);
@@ -338,10 +340,10 @@ const NgoDashboard = () => {
                           <td>{item.quantity}</td>
                           <td>{getStatusBadge(item.status)}</td>
                           <td>
-                            <Button variant="outline-primary" size="sm" className="me-2 d-flex align-items-center">
-                              <Truck size={14} className="me-1" /> Track Pickup
-                            </Button>
-                          </td>
+                             <Button variant="outline-primary" size="sm" className="me-2 d-flex align-items-center" onClick={() => setTrackingItem(item)}>
+                               <Truck size={14} className="me-1" /> Track Pickup
+                             </Button>
+                           </td>
                         </tr>
                       ))}
                       {myRequests.length === 0 && (
@@ -427,6 +429,40 @@ const NgoDashboard = () => {
               </Button>
              </Col>
           </Row>
+        </Modal.Body>
+      </Modal>
+
+      {/* Tracking Modal */}
+      <Modal show={!!trackingItem} onHide={() => setTrackingItem(null)} centered size="lg" className="rounded-4">
+        <Modal.Header closeButton className="border-0 pb-0">
+          <Modal.Title className="fw-bold text-primary">
+            Pickup Tracker: {trackingItem?.item}
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body className="pt-2">
+          {trackingItem && (
+            <div className="mb-4">
+               <div className="mb-3 d-flex justify-content-between align-items-center">
+                <span className="text-muted small">Tracking ID: SF-TK-{trackingItem._id?.substring(0, 8)}</span>
+                <Badge bg={trackingItem.status === 'Picked Up' ? 'success' : 'primary'}>
+                   {trackingItem.status}
+                </Badge>
+              </div>
+              <TrackingMap 
+                status={trackingItem.status}
+              />
+              <div className="mt-3 bg-light p-3 rounded-4">
+                <div className="d-flex align-items-center mb-2">
+                   <Truck size={18} className="me-2 text-primary" />
+                   <span className="fw-bold">Courier: {trackingItem.volunteer || 'In Process'}</span>
+                </div>
+                <p className="small text-muted mb-0">Live tracking from donor to your center. ETA approx 15-20m.</p>
+              </div>
+            </div>
+          )}
+          <Button variant="outline-primary" onClick={() => setTrackingItem(null)} className="w-100 py-2 fw-bold">
+            Close Tracking
+          </Button>
         </Modal.Body>
       </Modal>
 

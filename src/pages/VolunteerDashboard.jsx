@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import TrackingMap from '../components/TrackingMap';
 
 const API_URL = 'http://localhost:5000/api/listings';
 
@@ -369,19 +370,29 @@ const VolunteerDashboard = () => {
         <Modal.Body className="pt-3">
           {viewingMap && (
             <div className="text-center">
-              <div className="bg-light rounded-4 d-flex flex-column align-items-center justify-content-center border" style={{ height: '300px' }}>
-                <MapPin size={48} className="text-muted mb-3" />
-                <h5 className="text-muted">Map Integration Placeholder</h5>
-                <p className="text-muted small">Routing from Top-Donor to NGO Headquarters for: <strong>{viewingMap.item}</strong></p>
+              <div className="mb-3 d-flex justify-content-between align-items-center">
+                <span className="text-muted small">Rescue ID: SF-{viewingMap._id?.substring(0, 8)}</span>
+                <Badge bg={viewingMap.status === 'In Transit' ? 'primary' : 'warning'}>
+                   {viewingMap.status}
+                </Badge>
               </div>
-              <div className="mt-4 text-start">
-                <p className="mb-1"><strong>Est. Time:</strong> 15 mins</p>
-                <p className="mb-1"><strong>Traffic:</strong> Light</p>
+              <TrackingMap 
+                status={viewingMap.status}
+              />
+              <div className="mt-4 text-start bg-light p-3 rounded-4">
+                <div className="d-flex align-items-center mb-2">
+                  <Navigation size={18} className="me-2 text-primary" />
+                  <span className="fw-bold">Routing for: {viewingMap.item}</span>
+                </div>
+                <div className="small text-muted">
+                  <p className="mb-1"><strong>Est. Time:</strong> 15 mins</p>
+                  <p className="mb-1"><strong>Traffic:</strong> Light - Optimal route selected</p>
+                </div>
               </div>
             </div>
           )}
-          <Button variant="primary" onClick={() => setViewingMap(null)} className="w-100 py-2 mt-4 fw-bold">
-            Close Map
+          <Button variant="primary" onClick={() => setViewingMap(null)} className="w-100 py-2 mt-4 fw-bold rounded-3">
+            Close Navigation
           </Button>
         </Modal.Body>
       </Modal>

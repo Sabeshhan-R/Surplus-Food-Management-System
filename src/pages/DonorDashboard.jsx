@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import TrackingMap from '../components/TrackingMap';
 
 const API_URL = 'http://localhost:5000/api/listings';
 
@@ -32,6 +33,8 @@ const DonorDashboard = () => {
     type: 'Cooked Meal',
     expiry: ''
   });
+
+  const [trackingItem, setTrackingItem] = useState(null);
 
   const [notifications, setNotifications] = useState([]);
   const [showToast, setShowToast] = useState(false);
@@ -281,7 +284,14 @@ const DonorDashboard = () => {
                             </td>
                             <td>
                               <Button variant="link" className="p-0 text-success me-3" onClick={() => setViewingListing(item)}>View</Button>
-                              <Button variant="link" className="p-0 text-primary">Track</Button>
+                              <Button 
+                                variant="link" 
+                                className={`p-0 ${item.status === 'Pending' || item.status === 'Rejected' ? 'text-muted' : 'text-primary'}`}
+                                onClick={() => setTrackingItem(item)}
+                                disabled={item.status === 'Pending' || item.status === 'Rejected'}
+                              >
+                                Track
+                              </Button>
                             </td>
                           </tr>
                         ))}
@@ -339,6 +349,15 @@ const DonorDashboard = () => {
                                   <Trash2 size={14} />
                                 </Button>
                               )}
+                              <Button
+                                variant="light"
+                                size="sm"
+                                className={`ms-2 ${item.status === 'Pending' || item.status === 'Rejected' ? 'text-muted opacity-50' : 'text-success'}`}
+                                onClick={() => setTrackingItem(item)}
+                                disabled={item.status === 'Pending' || item.status === 'Rejected'}
+                              >
+                                <Truck size={14} />
+                              </Button>
                             </div>
                           </td>
                         </tr>
@@ -486,6 +505,40 @@ const DonorDashboard = () => {
           )}
           <Button variant="secondary" onClick={() => setViewingListing(null)} className="w-100 py-2 fw-bold">
             Close
+          </Button>
+        </Modal.Body>
+      </Modal>
+
+      {/* Tracking Modal */}
+      <Modal show={!!trackingItem} onHide={() => setTrackingItem(null)} centered size="lg" className="rounded-4">
+        <Modal.Header closeButton className="border-0 pb-0">
+          <Modal.Title className="fw-bold text-success">
+            Live Delivery Tracking: {trackingItem?.item}
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body className="pt-2">
+          {trackingItem && (
+            <div className="mb-4">
+              <div className="mb-3 d-flex justify-content-between align-items-center">
+                <span className="text-muted small">Tracking ID: SF-TK-{trackingItem._id?.substring(0, 8)}</span>
+                <Badge bg={trackingItem.status === 'Picked Up' ? 'success' : 'primary'}>
+                   {trackingItem.status}
+                </Badge>
+              </div>
+              <TrackingMap 
+                status={trackingItem.status}
+              />
+              <div className="mt-3 bg-light p-3 rounded-4">
+                <div className="d-flex align-items-center mb-2">
+                  <Truck size={18} className="me-2 text-primary" />
+                  <span className="fw-bold">Volunteer: {trackingItem.volunteer || 'Searching...'}</span>
+                </div>
+                <p className="small text-muted mb-0">The volunteer is currently {trackingItem.status === 'In Transit' ? 'on the way to the NGO.' : 'assigned and will pick up shortly.'}</p>
+              </div>
+            </div>
+          )}
+          <Button variant="outline-success" onClick={() => setTrackingItem(null)} className="w-100 py-2 fw-bold rounded-3">
+            Close Tracking
           </Button>
         </Modal.Body>
       </Modal>
