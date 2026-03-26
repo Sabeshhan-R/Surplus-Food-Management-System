@@ -25,11 +25,25 @@ const userSchema = new mongoose.Schema({
     enum: ['Donor', 'NGO', 'Volunteer', 'Admin'],
     default: 'Donor'
   },
+  location: {
+    type: {
+      type: String,
+      enum: ['Point'],
+      default: 'Point'
+    },
+    coordinates: {
+      type: [Number], // [longitude, latitude]
+      default: [0, 0] // Default to 0,0 for now
+    },
+    address: String
+  },
   createdAt: {
     type: Date,
     default: Date.now
   }
 });
+
+userSchema.index({ location: '2dsphere' });
 
 // Hash password before saving
 userSchema.pre('save', async function() {
