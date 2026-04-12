@@ -18,7 +18,7 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: [true, 'Please provide a password'],
     minlength: 8,
-    select: false // Don't return password by default
+    select: false 
   },
   role: {
     type: String,
@@ -32,8 +32,8 @@ const userSchema = new mongoose.Schema({
       default: 'Point'
     },
     coordinates: {
-      type: [Number], // [longitude, latitude]
-      default: [0, 0] // Default to 0,0 for now
+      type: [Number], 
+      default: [0, 0]
     },
     address: String
   },

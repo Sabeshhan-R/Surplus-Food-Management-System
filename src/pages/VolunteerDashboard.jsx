@@ -12,18 +12,22 @@ import {
   Play
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import API from '../api/axios';
+import MapComponent from '../components/MapComponent';
+import { TableSkeleton } from '../components/Skeleton';
 
 const API_URL = 'http://localhost:5000/api/listings';
 
 const VolunteerDashboard = () => {
   const navigate = useNavigate();
-  const [user, setUser] = useState(JSON.parse(localStorage.getItem('user')) || { fullName: 'Volunteer Hero' });
+  const [user, setUser] = useState(JSON.parse(sessionStorage.getItem('user')) || { fullName: 'Volunteer Hero' });
   const [activeTab, setActiveTab] = useState('overview');
   const [availablePickups, setAvailablePickups] = useState([]);
   const [activeTasks, setActiveTasks] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [history, setHistory] = useState([]);
   const [viewingMap, setViewingMap] = useState(null);
+  const [currentUserLocation, setCurrentUserLocation] = useState([79.8612, 6.9271]);
 
   const [notifications, setNotifications] = useState([]);
   const [showToast, setShowToast] = useState(false);
@@ -32,7 +36,7 @@ const VolunteerDashboard = () => {
 
   const fetchNotifications = async () => {
     try {
-      const res = await axios.get(`http://localhost:5000/api/notifications/${user.id}`);
+      const res = await API.get(`http://localhost:5000/api/notifications/${user.id}`);
       setNotifications(res.data.data.notifications);
     } catch (err) {
       console.error('Error fetching notifications:', err);
@@ -41,7 +45,7 @@ const VolunteerDashboard = () => {
 
   const addNotification = async (text) => {
     try {
-      await axios.post('http://localhost:5000/api/notifications', { userId: user.id, text });
+      await API.post('http://localhost:5000/api/notifications', { userId: user.id, text });
       fetchNotifications();
       setToastMessage(text);
       setShowToast(true);
@@ -52,7 +56,7 @@ const VolunteerDashboard = () => {
 
   const clearNotification = async (id) => {
     try {
-      await axios.delete(`http://localhost:5000/api/notifications/${id}`);
+      await API.delete(`http://localhost:5000/api/notifications/${id}`);
       setNotifications(prev => prev.filter(n => n._id !== id));
     } catch (err) {
       console.error('Error clearing notification:', err);
@@ -60,13 +64,14 @@ const VolunteerDashboard = () => {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('user');
+    sessionStorage.removeItem('user');
+    sessionStorage.removeItem('token');
     navigate('/auth');
   };
 
   const fetchListings = async () => {
     try {
-      const res = await axios.get(API_URL);
+      const res = await API.get(API_URL);
       const allListings = res.data.data.listings;
 
       if (prevListingsRef.current.length > 0) {
@@ -90,11 +95,13 @@ const VolunteerDashboard = () => {
       setHistory(allListings.filter(l => l.status === 'Picked Up' && l.volunteer === user.fullName));
     } catch (err) {
       console.error('Error fetching listings:', err);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchListings(); // Initial run
+    fetchListings();
     fetchNotifications();
     const interval = setInterval(() => {
       fetchListings();
@@ -103,9 +110,41 @@ const VolunteerDashboard = () => {
     return () => clearInterval(interval);
   }, [user.id]);
 
+  // Live Location Broadcast for "In Transit" tasks
+  useEffect(() => {
+    const activeTransitTask = activeTasks.find(t => t.status === 'In Transit');
+    if (!activeTransitTask) return;
+
+    const watchId = navigator.geolocation.watchPosition(async (pos) => {
+      const { latitude, longitude } = pos.coords;
+      setCurrentUserLocation([longitude, latitude]);
+      try {
+        await API.put(`${API_URL}/${activeTransitTask._id}`, {
+          volunteerLocation: { coordinates: [longitude, latitude] }
+        });
+      } catch (err) {
+        console.error('Error broadcasting location:', err);
+      }
+    }, (err) => console.error('Watch error:', err), {
+      enableHighAccuracy: true,
+      maximumAge: 5000
+    });
+
+    return () => navigator.geolocation.clearWatch(watchId);
+  }, [activeTasks]);
+
+  // General location tracking for markers
+  useEffect(() => {
+    if (navigator.geolocation) {
+       navigator.geolocation.getCurrentPosition(pos => {
+         setCurrentUserLocation([pos.coords.longitude, pos.coords.latitude]);
+       });
+    }
+  }, []);
+
   const updateStatus = async (id, newStatus, volunteerName = user.fullName) => {
     try {
-      await axios.put(`${API_URL}/${id}`, { status: newStatus, volunteer: volunteerName });
+      await API.put(`${API_URL}/${id}`, { status: newStatus, volunteer: volunteerName });
       fetchListings();
     } catch (err) {
       console.error('Error updating status:', err);
@@ -206,40 +245,64 @@ const VolunteerDashboard = () => {
                   </Col>
                 </Row>
 
+                <Card className="border-0 shadow-sm rounded-4 mb-4">
+                  <Card.Header className="bg-white py-3 border-0 d-flex justify-content-between align-items-center">
+                    <h5 className="fw-bold mb-0">Live Rescue Map</h5>
+                    <Badge bg="success">{availablePickups.length} Nearby</Badge>
+                  </Card.Header>
+                  <Card.Body>
+                    <div style={{ height: '350px' }} className="rounded-4 overflow-hidden border">
+                      <MapComponent 
+                        center={[79.8612, 6.9271]}
+                        zoom={12}
+                        markers={availablePickups.map(item => ({
+                          coordinates: item.location?.coordinates || [79.8612, 6.9271],
+                          title: item.item,
+                          color: "#ffc107"
+                        }))}
+                      />
+                    </div>
+                  </Card.Body>
+                </Card>
+
                 <Card className="border-0 shadow-sm rounded-4">
-                  <Card.Header className="bg-white py-3 border-0">
+                   <Card.Header className="bg-white py-3 border-0">
                     <h5 className="fw-bold mb-0">Accept Open Pickups</h5>
                   </Card.Header>
                   <Card.Body>
-                    <Table responsive hover borderless className="align-middle">
-                      <thead className="bg-light">
-                        <tr>
-                          <th>Item</th>
-                          <th>Quantity</th>
-                          <th>Status</th>
-                          <th>Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {availablePickups.slice(0, 5).map(item => (
-                          <tr key={item._id}>
-                            <td className="fw-bold">{item.item}</td>
-                            <td>{item.quantity}</td>
-                            <td><Badge bg="warning" text="dark">Looking for Driver</Badge></td>
-                            <td>
-                              <Button variant="outline-primary" size="sm" onClick={() => updateStatus(item._id, 'Assigned', user.fullName)}>
-                                <Check size={14} className="me-1" /> Accept
-                              </Button>
-                            </td>
-                          </tr>
-                        ))}
-                        {availablePickups.length === 0 && (
+                    {isLoading ? (
+                      <TableSkeleton rows={3} />
+                    ) : (
+                      <Table responsive hover borderless className="align-middle">
+                        <thead className="bg-light">
                           <tr>
-                            <td colSpan="4" className="text-center py-4 text-muted">No pending rescues available right now.</td>
+                            <th>Item</th>
+                            <th>Quantity</th>
+                            <th>Status</th>
+                            <th>Actions</th>
                           </tr>
-                        )}
-                      </tbody>
-                    </Table>
+                        </thead>
+                        <tbody>
+                          {availablePickups.slice(0, 5).map(item => (
+                            <tr key={item._id}>
+                              <td className="fw-bold">{item.item}</td>
+                              <td>{item.quantity}</td>
+                              <td><Badge bg="warning" text="dark">Looking for Driver</Badge></td>
+                              <td>
+                                <Button variant="outline-primary" size="sm" onClick={() => updateStatus(item._id, 'Assigned', user.fullName)}>
+                                  <Check size={14} className="me-1" /> Accept
+                                </Button>
+                              </td>
+                            </tr>
+                          ))}
+                          {availablePickups.length === 0 && (
+                            <tr>
+                              <td colSpan="4" className="text-center py-4 text-muted">No pending rescues available right now.</td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </Table>
+                    )}
                   </Card.Body>
                 </Card>
               </div>
@@ -367,16 +430,47 @@ const VolunteerDashboard = () => {
           <Modal.Title className="fw-bold text-primary">Live Route Tracking</Modal.Title>
         </Modal.Header>
         <Modal.Body className="pt-3">
-          {viewingMap && (
-            <div className="text-center">
-              <div className="bg-light rounded-4 d-flex flex-column align-items-center justify-content-center border" style={{ height: '300px' }}>
-                <MapPin size={48} className="text-muted mb-3" />
-                <h5 className="text-muted">Map Integration Placeholder</h5>
-                <p className="text-muted small">Routing from Top-Donor to NGO Headquarters for: <strong>{viewingMap.item}</strong></p>
+           {viewingMap && (
+             <div className="text-center">
+              <div className="rounded-4 overflow-hidden border mb-3" style={{ height: '400px' }}>
+                <MapComponent 
+                  center={currentUserLocation}
+                  zoom={15}
+                  markers={[
+                    {
+                      coordinates: viewingMap.location?.coordinates || [79.8612, 6.9271],
+                      title: "Donation Pickup Site",
+                      subtitle: viewingMap.item,
+                      color: "#198754"
+                    },
+                    {
+                      coordinates: currentUserLocation,
+                      title: "Your Location",
+                      subtitle: "Tracking you live...",
+                      color: "#0d6efd"
+                    }
+                  ]}
+                />
               </div>
-              <div className="mt-4 text-start">
-                <p className="mb-1"><strong>Est. Time:</strong> 15 mins</p>
-                <p className="mb-1"><strong>Traffic:</strong> Light</p>
+              <div className="text-start p-3 bg-light rounded-4">
+                <Row className="align-items-center">
+                  <Col md={8}>
+                    <p className="mb-1"><strong>Item:</strong> {viewingMap.item}</p>
+                    <p className="mb-1"><strong>Address:</strong> {viewingMap.location?.address || 'N/A'}</p>
+                    <p className="mb-0 text-primary small"><Navigation size={12} className="me-1" /> Dash-line shows path to destination.</p>
+                  </Col>
+                  <Col md={4} className="text-md-end mt-3 mt-md-0">
+                    <Button 
+                      variant="primary" 
+                      onClick={() => {
+                        const [lng, lat] = viewingMap.location?.coordinates || [0,0];
+                        window.open(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`, '_blank');
+                      }}
+                    >
+                      <Navigation size={14} className="me-1" /> Navigate
+                    </Button>
+                  </Col>
+                </Row>
               </div>
             </div>
           )}

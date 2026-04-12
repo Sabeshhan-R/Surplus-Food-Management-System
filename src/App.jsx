@@ -4,6 +4,7 @@ import AuthPage from './pages/AuthPage'
 import DonorDashboard from './pages/DonorDashboard'
 import NgoDashboard from './pages/NgoDashboard'
 import VolunteerDashboard from './pages/VolunteerDashboard'
+import ProtectedRoute from './components/ProtectedRoute'
 
 function App() {
   return (
@@ -12,10 +13,33 @@ function App() {
         <Routes>
           <Route path="/" element={<Navigate to="/auth" />} />
           <Route path="/auth" element={<AuthPage />} />
-          <Route path="/donor" element={<DonorDashboard />} />
-          {/* Placeholders for other roles */}
-          <Route path="/ngo" element={<NgoDashboard />} />
-          <Route path="/volunteer" element={<VolunteerDashboard />} />
+          
+          <Route 
+            path="/donor" 
+            element={
+              <ProtectedRoute allowedRoles={['Donor']}>
+                <DonorDashboard />
+              </ProtectedRoute>
+            } 
+          />
+          
+          <Route 
+            path="/ngo" 
+            element={
+              <ProtectedRoute allowedRoles={['NGO']}>
+                <NgoDashboard />
+              </ProtectedRoute>
+            } 
+          />
+          
+          <Route 
+            path="/volunteer" 
+            element={
+              <ProtectedRoute allowedRoles={['Volunteer']}>
+                <VolunteerDashboard />
+              </ProtectedRoute>
+            } 
+          />
         </Routes>
       </div>
     </Router>

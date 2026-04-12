@@ -1,13 +1,23 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Container, Form, Button, Card, Row, Col, Alert, Spinner } from 'react-bootstrap';
 import { LogIn, UserPlus, KeyRound, ArrowLeft, Mail, Lock, User, ShieldCheck } from 'lucide-react';
-import axios from 'axios';
+import API from '../api/axios';
 import { useNavigate } from 'react-router-dom';
 
 const API_URL = 'http://localhost:5000/api/auth';
 
 const AuthPage = () => {
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const user = JSON.parse(sessionStorage.getItem('user'));
+    if (user) {
+      if (user.role === 'Donor') navigate('/donor');
+      else if (user.role === 'NGO') navigate('/ngo');
+      else if (user.role === 'Volunteer') navigate('/volunteer');
+    }
+  }, [navigate]);
+
   const [mode, setMode] = useState('login'); // 'login' | 'register' | 'forgot'
   const [formData, setFormData] = useState({
     email: '',
@@ -28,27 +38,40 @@ const AuthPage = () => {
           throw new Error('Passwords do not match');
         }
         
-        const response = await axios.post(`${API_URL}/register`, {
+        const response = await API.post('/auth/register', {
           fullName: formData.fullName,
           email: formData.email,
           password: formData.password,
           role: formData.role
         });
         
+        // Handle token and user on register
+        const userData = response.data.data.user;
+        const token = response.data.token;
+        sessionStorage.setItem('user', JSON.stringify(userData));
+        sessionStorage.setItem('token', token);
+
         setStatus({ 
           type: 'success', 
-          message: 'Registration successful! You can now log in.', 
+          message: 'Registration successful! Redirecting...', 
           loading: false 
         });
-        setTimeout(() => setMode('login'), 2000);
+
+        setTimeout(() => {
+          if (userData.role === 'Donor') navigate('/donor');
+          else if (userData.role === 'NGO') navigate('/ngo');
+          else if (userData.role === 'Volunteer') navigate('/volunteer');
+        }, 1500);
       } else if (mode === 'login') {
-        const response = await axios.post(`${API_URL}/login`, {
+        const response = await API.post('/auth/login', {
           email: formData.email,
           password: formData.password
         });
         
         const userData = response.data.data.user;
-        localStorage.setItem('user', JSON.stringify(userData));
+        const token = response.data.token;
+        sessionStorage.setItem('user', JSON.stringify(userData));
+        sessionStorage.setItem('token', token);
 
         setStatus({ 
           type: 'success', 
