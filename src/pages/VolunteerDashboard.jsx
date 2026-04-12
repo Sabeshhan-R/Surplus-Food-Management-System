@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Container, Row, Col, Card, Button, Table, Badge, Modal, Nav, Navbar, Alert, Toast, ToastContainer } from 'react-bootstrap';
+import { Container, Row, Col, Card, Alert, Toast, ToastContainer, Modal } from 'react-bootstrap';
 import {
   LayoutDashboard,
   LogOut,
@@ -12,62 +12,75 @@ import {
   Play
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-<<<<<<< HEAD
 import axios from 'axios';
-import TrackingMap from '../components/TrackingMap';
-=======
-import API from '../api/axios';
-import MapComponent from '../components/MapComponent';
-import { TableSkeleton } from '../components/Skeleton';
->>>>>>> Sabeshhan
+import { SkeletonBox, MetricCardSkeleton, TableSkeleton, NotifSkeleton, DashboardOverviewSkeleton } from '../components/Skeleton';
 
 const API_URL = 'http://localhost:5000/api/listings';
 
+const StatusBadge = ({ status }) => {
+  let mappedClass = '';
+  switch (status) {
+    case 'Pending': mappedClass = 'status-pending'; break;
+    case 'Assigned': mappedClass = 'status-assigned'; break;
+    case 'In Transit': mappedClass = 'status-in-transit'; break;
+    case 'Picked Up': mappedClass = 'status-picked-up'; break;
+    case 'Rejected': mappedClass = 'status-rejected'; break;
+    default: mappedClass = 'status-pending';
+  }
+  return <span className={`status-badge ${mappedClass}`}>{status}</span>;
+}
+
+const EmptyState = ({ icon: Icon, title, sub }) => (
+  <div className="empty-state">
+    <div className="empty-state-icon">
+      <Icon size={32} />
+    </div>
+    <div className="empty-state-title">{title}</div>
+    <div className="empty-state-sub">{sub}</div>
+  </div>
+);
+
 const VolunteerDashboard = () => {
   const navigate = useNavigate();
-<<<<<<< HEAD
-  const [user, setUser] = useState(JSON.parse(localStorage.getItem('user')) || { fullName: 'Volunteer Hero' });
+  const [user, setUser] = useState(JSON.parse(localStorage.getItem('user')) || { fullName: 'Volunteer Hero', role: 'Volunteer' });
   const [activeTab, setActiveTab] = useState('overview');
-  const [availablePickups, setAvailablePickups] = useState([]);
-  const [activeTasks, setActiveTasks] = useState([]);
-  const [history, setHistory] = useState([]);
-  const [viewingMap, setViewingMap] = useState(null);
-=======
-  const [user, setUser] = useState(JSON.parse(sessionStorage.getItem('user')) || { fullName: 'Volunteer Hero' });
-  const [activeTab, setActiveTab] = useState('overview');
-  const [availablePickups, setAvailablePickups] = useState([]);
-  const [activeTasks, setActiveTasks] = useState([]);
+  const [tabLoading, setTabLoading] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [notifLoading, setNotifLoading] = useState(true);
+
+  const [availablePickups, setAvailablePickups] = useState([]);
+  const [activeTasks, setActiveTasks] = useState([]);
   const [history, setHistory] = useState([]);
   const [viewingMap, setViewingMap] = useState(null);
-  const [currentUserLocation, setCurrentUserLocation] = useState([79.8612, 6.9271]);
->>>>>>> Sabeshhan
 
   const [notifications, setNotifications] = useState([]);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const prevListingsRef = useRef([]);
 
+  const handleTabSwitch = (tab) => {
+    if (tab === activeTab) return;
+    setTabLoading(true);
+    setTimeout(() => {
+      setActiveTab(tab);
+      setTabLoading(false);
+    }, 220);
+  };
+
   const fetchNotifications = async () => {
     try {
-<<<<<<< HEAD
       const res = await axios.get(`http://localhost:5000/api/notifications/${user.id}`);
-=======
-      const res = await API.get(`http://localhost:5000/api/notifications/${user.id}`);
->>>>>>> Sabeshhan
       setNotifications(res.data.data.notifications);
     } catch (err) {
       console.error('Error fetching notifications:', err);
+    } finally {
+      setNotifLoading(false);
     }
   };
 
   const addNotification = async (text) => {
     try {
-<<<<<<< HEAD
       await axios.post('http://localhost:5000/api/notifications', { userId: user.id, text });
-=======
-      await API.post('http://localhost:5000/api/notifications', { userId: user.id, text });
->>>>>>> Sabeshhan
       fetchNotifications();
       setToastMessage(text);
       setShowToast(true);
@@ -78,11 +91,7 @@ const VolunteerDashboard = () => {
 
   const clearNotification = async (id) => {
     try {
-<<<<<<< HEAD
       await axios.delete(`http://localhost:5000/api/notifications/${id}`);
-=======
-      await API.delete(`http://localhost:5000/api/notifications/${id}`);
->>>>>>> Sabeshhan
       setNotifications(prev => prev.filter(n => n._id !== id));
     } catch (err) {
       console.error('Error clearing notification:', err);
@@ -90,26 +99,16 @@ const VolunteerDashboard = () => {
   };
 
   const handleLogout = () => {
-<<<<<<< HEAD
     localStorage.removeItem('user');
-=======
-    sessionStorage.removeItem('user');
-    sessionStorage.removeItem('token');
->>>>>>> Sabeshhan
     navigate('/auth');
   };
 
   const fetchListings = async () => {
     try {
-<<<<<<< HEAD
       const res = await axios.get(API_URL);
-=======
-      const res = await API.get(API_URL);
->>>>>>> Sabeshhan
       const allListings = res.data.data.listings;
 
       if (prevListingsRef.current.length > 0) {
-        // Detect new assignment looking for driver
         const newAvailable = allListings.filter(l => l.status === 'Assigned' && l.volunteer === 'Pending Assignment' && !prevListingsRef.current.find(pl => pl._id === l._id && pl.status === 'Assigned' && pl.volunteer === 'Pending Assignment'));
 
         newAvailable.forEach(item => {
@@ -118,80 +117,29 @@ const VolunteerDashboard = () => {
       }
 
       prevListingsRef.current = allListings;
-
-      // Available to accept: Assigned but no specific volunteer claimed it yet
       setAvailablePickups(allListings.filter(l => l.status === 'Assigned' && l.volunteer === 'Pending Assignment'));
-
-      // Active tasks for this volunteer
       setActiveTasks(allListings.filter(l => (l.status === 'Assigned' || l.status === 'In Transit') && l.volunteer === user.fullName));
-
-      // Completed pickups by this volunteer
       setHistory(allListings.filter(l => l.status === 'Picked Up' && l.volunteer === user.fullName));
     } catch (err) {
       console.error('Error fetching listings:', err);
-<<<<<<< HEAD
-=======
     } finally {
       setIsLoading(false);
->>>>>>> Sabeshhan
     }
   };
 
   useEffect(() => {
-<<<<<<< HEAD
-    fetchListings(); // Initial run
-=======
     fetchListings();
->>>>>>> Sabeshhan
     fetchNotifications();
     const interval = setInterval(() => {
       fetchListings();
       fetchNotifications();
-    }, 3000); // Poll every 3 seconds
+    }, 3000);
     return () => clearInterval(interval);
   }, [user.id]);
 
-<<<<<<< HEAD
   const updateStatus = async (id, newStatus, volunteerName = user.fullName) => {
     try {
       await axios.put(`${API_URL}/${id}`, { status: newStatus, volunteer: volunteerName });
-=======
-  // Live Location Broadcast for "In Transit" tasks
-  useEffect(() => {
-    const activeTransitTask = activeTasks.find(t => t.status === 'In Transit');
-    if (!activeTransitTask) return;
-
-    const watchId = navigator.geolocation.watchPosition(async (pos) => {
-      const { latitude, longitude } = pos.coords;
-      setCurrentUserLocation([longitude, latitude]);
-      try {
-        await API.put(`${API_URL}/${activeTransitTask._id}`, {
-          volunteerLocation: { coordinates: [longitude, latitude] }
-        });
-      } catch (err) {
-        console.error('Error broadcasting location:', err);
-      }
-    }, (err) => console.error('Watch error:', err), {
-      enableHighAccuracy: true,
-      maximumAge: 5000
-    });
-
-    return () => navigator.geolocation.clearWatch(watchId);
-  }, [activeTasks]);
-
-  // General location tracking for markers
-  useEffect(() => {
-    if (navigator.geolocation) {
-       navigator.geolocation.getCurrentPosition(pos => {
-         setCurrentUserLocation([pos.coords.longitude, pos.coords.latitude]);
-       });
-    }
-  }, []);
-
-  const updateStatus = async (id, newStatus, volunteerName = user.fullName) => {
-    try {
-      await API.put(`${API_URL}/${id}`, { status: newStatus, volunteer: volunteerName });
->>>>>>> Sabeshhan
       fetchListings();
     } catch (err) {
       console.error('Error updating status:', err);
@@ -199,310 +147,264 @@ const VolunteerDashboard = () => {
     }
   };
 
-  const getStatusBadge = (status) => {
-    switch (status) {
-      case 'Assigned': return <Badge bg="info">Pending Pickup</Badge>;
-      case 'In Transit': return <Badge bg="primary">In Transit</Badge>;
-      case 'Picked Up': return <Badge bg="success">Completed</Badge>;
-      default: return <Badge bg="secondary">{status}</Badge>;
-    }
-  };
-
   return (
     <div className="bg-light min-vh-100">
-      {/* Navbar */}
-      <Navbar bg="white" className="shadow-sm px-4 py-3 sticky-top">
-        <Navbar.Brand className="d-flex align-items-center text-primary fw-bold">
-          <Truck className="me-2" /> SurplusFood Volunteer
-        </Navbar.Brand>
-        <Navbar.Toggle />
-        <Navbar.Collapse className="justify-content-end">
-          <Nav className="align-items-center">
-            <span className="me-3 text-muted d-none d-md-block">Welcome, <strong>{user.fullName}</strong></span>
-            <Button variant="outline-danger" size="sm" onClick={handleLogout} className="d-flex align-items-center">
-              <LogOut size={16} className="me-2" /> Logout
-            </Button>
-          </Nav>
-        </Navbar.Collapse>
-      </Navbar>
+      <div className="app-navbar d-flex justify-content-between align-items-center mb-4">
+        <div className="d-flex align-items-center text-primary fw-bold fs-5">
+          <Truck className="me-2 text-warning" /> SurplusFood Volunteer
+        </div>
+        <div className="d-flex align-items-center gap-3">
+          <div className="user-chip">
+            <div className="avatar">{user.fullName.charAt(0)}</div>
+            <div className="info d-none d-md-flex">
+              <span className="name">{user.fullName}</span>
+              <span className="role">{user.role}</span>
+            </div>
+          </div>
+          <button className="action-btn reject" onClick={handleLogout} title="Logout">
+            <LogOut size={16} /> <span className="d-none d-md-inline">Logout</span>
+          </button>
+        </div>
+      </div>
 
-      <Container className="py-5">
+      <Container>
         <Row>
-          {/* Sidebar Tabs */}
           <Col lg={3} className="mb-4">
-            <Card className="border-0 shadow-sm rounded-4 overflow-hidden">
-              <Card.Body className="p-0">
-                <Nav className="flex-column">
-                  <Nav.Link
-                    className={`p-3 d-flex align-items-center border-bottom ${activeTab === 'overview' ? 'bg-primary text-white' : 'text-dark'}`}
-                    onClick={() => setActiveTab('overview')}
-                  >
-                    <LayoutDashboard className="me-3" size={20} /> Dashboard
-                  </Nav.Link>
-                  <Nav.Link
-                    className={`p-3 d-flex align-items-center border-bottom ${activeTab === 'active' ? 'bg-primary text-white' : 'text-dark'}`}
-                    onClick={() => setActiveTab('active')}
-                  >
-                    <Navigation className="me-3" size={20} /> Active Pickups
-                  </Nav.Link>
-                  <Nav.Link
-                    className={`p-3 d-flex align-items-center border-bottom ${activeTab === 'history' ? 'bg-primary text-white' : 'text-dark'}`}
-                    onClick={() => setActiveTab('history')}
-                  >
-                    <CheckCircle className="me-3" size={20} /> Pickup History
-                  </Nav.Link>
-                  <Nav.Link
-                    className={`p-3 d-flex align-items-center border-bottom ${activeTab === 'notifications' ? 'bg-primary text-white' : 'text-dark'}`}
-                    onClick={() => setActiveTab('notifications')}
-                  >
-                    <Bell className="me-3" size={20} /> Notifications
-                    <Badge pill bg="danger" className="ms-auto">{notifications.length}</Badge>
-                  </Nav.Link>
-                </Nav>
-              </Card.Body>
-            </Card>
-          </Col>
-
-          {/* Main Content Area */}
-          <Col lg={9}>
-            {activeTab === 'overview' && (
-              <div className="animate-in">
-                <h4 className="fw-bold mb-4">Volunteer Dashboard</h4>
-                <Row className="g-4 mb-4">
-                  <Col md={4}>
-                    <Card className="border-0 shadow-sm rounded-4 p-3 h-100 bg-white text-center">
-                      <MapPin className="mx-auto mb-3 text-warning" size={32} />
-                      <h3 className="fw-bold mb-0">{availablePickups.length}</h3>
-                      <p className="text-muted mb-0">Open Pickups Available</p>
-                    </Card>
-                  </Col>
-                  <Col md={4}>
-                    <Card className="border-0 shadow-sm rounded-4 p-3 h-100 bg-white text-center">
-                      <Truck className="mx-auto mb-3 text-primary" size={32} />
-                      <h3 className="fw-bold mb-0">{activeTasks.length}</h3>
-                      <p className="text-muted mb-0">My Active Tasks</p>
-                    </Card>
-                  </Col>
-                  <Col md={4}>
-                    <Card className="border-0 shadow-sm rounded-4 p-3 h-100 bg-white text-center">
-                      <CheckCircle className="mx-auto mb-3 text-success" size={32} />
-                      <h3 className="fw-bold mb-0">{history.length}</h3>
-                      <p className="text-muted mb-0">Lifetime Deliveries</p>
-                    </Card>
-                  </Col>
-                </Row>
-
-<<<<<<< HEAD
-                <Card className="border-0 shadow-sm rounded-4">
-                  <Card.Header className="bg-white py-3 border-0">
-                    <h5 className="fw-bold mb-0">Accept Open Pickups</h5>
-                  </Card.Header>
-                  <Card.Body>
-                    <Table responsive hover borderless className="align-middle">
-                      <thead className="bg-light">
-                        <tr>
-                          <th>Item</th>
-                          <th>Quantity</th>
-                          <th>Status</th>
-                          <th>Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {availablePickups.slice(0, 5).map(item => (
-                          <tr key={item._id}>
-                            <td className="fw-bold">{item.item}</td>
-                            <td>{item.quantity}</td>
-                            <td><Badge bg="warning" text="dark">Looking for Driver</Badge></td>
-                            <td>
-                              <Button variant="outline-primary" size="sm" onClick={() => updateStatus(item._id, 'Assigned', user.fullName)}>
-                                <Check size={14} className="me-1" /> Accept
-                              </Button>
-                            </td>
-                          </tr>
-                        ))}
-                        {availablePickups.length === 0 && (
-                          <tr>
-                            <td colSpan="4" className="text-center py-4 text-muted">No pending rescues available right now.</td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </Table>
-=======
-                <Card className="border-0 shadow-sm rounded-4 mb-4">
-                  <Card.Header className="bg-white py-3 border-0 d-flex justify-content-between align-items-center">
-                    <h5 className="fw-bold mb-0">Live Rescue Map</h5>
-                    <Badge bg="success">{availablePickups.length} Nearby</Badge>
-                  </Card.Header>
-                  <Card.Body>
-                    <div style={{ height: '350px' }} className="rounded-4 overflow-hidden border">
-                      <MapComponent 
-                        center={[79.8612, 6.9271]}
-                        zoom={12}
-                        markers={availablePickups.map(item => ({
-                          coordinates: item.location?.coordinates || [79.8612, 6.9271],
-                          title: item.item,
-                          color: "#ffc107"
-                        }))}
-                      />
-                    </div>
-                  </Card.Body>
-                </Card>
-
-                <Card className="border-0 shadow-sm rounded-4">
-                   <Card.Header className="bg-white py-3 border-0">
-                    <h5 className="fw-bold mb-0">Accept Open Pickups</h5>
-                  </Card.Header>
-                  <Card.Body>
-                    {isLoading ? (
-                      <TableSkeleton rows={3} />
-                    ) : (
-                      <Table responsive hover borderless className="align-middle">
-                        <thead className="bg-light">
-                          <tr>
-                            <th>Item</th>
-                            <th>Quantity</th>
-                            <th>Status</th>
-                            <th>Actions</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {availablePickups.slice(0, 5).map(item => (
-                            <tr key={item._id}>
-                              <td className="fw-bold">{item.item}</td>
-                              <td>{item.quantity}</td>
-                              <td><Badge bg="warning" text="dark">Looking for Driver</Badge></td>
-                              <td>
-                                <Button variant="outline-primary" size="sm" onClick={() => updateStatus(item._id, 'Assigned', user.fullName)}>
-                                  <Check size={14} className="me-1" /> Accept
-                                </Button>
-                              </td>
-                            </tr>
-                          ))}
-                          {availablePickups.length === 0 && (
-                            <tr>
-                              <td colSpan="4" className="text-center py-4 text-muted">No pending rescues available right now.</td>
-                            </tr>
-                          )}
-                        </tbody>
-                      </Table>
-                    )}
->>>>>>> Sabeshhan
-                  </Card.Body>
-                </Card>
+            <div className="sidebar-card">
+              <div 
+                className={`sidebar-link ${activeTab === 'overview' ? 'active' : ''}`}
+                onClick={() => handleTabSwitch('overview')}
+              >
+                <LayoutDashboard className="me-3" size={20} /> Dashboard
               </div>
-            )}
-
-            {activeTab === 'active' && (
-              <div className="animate-in">
-                <h4 className="fw-bold mb-4">My Active Rescues</h4>
-                <Card className="border-0 shadow-sm rounded-4 overflow-hidden">
-                  <Table responsive hover className="mb-0 align-middle">
-                    <thead className="bg-light">
-                      <tr>
-                        <th>Listing</th>
-                        <th>Details</th>
-                        <th>Status</th>
-                        <th>Live Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {activeTasks.map(item => (
-                        <tr key={item._id}>
-                          <td>
-                            <div className="fw-bold">{item.item}</div>
-                            <small className="text-muted">ID: SF-{item._id ? item._id.substring(item._id.length - 4) : 'N/A'}</small>
-                          </td>
-                          <td>
-                            <div>Qty: {item.quantity}</div>
-                            <small className="text-danger">Exp: {new Date(item.expiry).toLocaleString()}</small>
-                          </td>
-                          <td>{getStatusBadge(item.status)}</td>
-                          <td>
-                            <div className="d-flex flex-wrap gap-2">
-                              {item.status === 'Assigned' && (
-                                <Button variant="primary" size="sm" className="d-flex align-items-center" onClick={() => updateStatus(item._id, 'In Transit')}>
-                                  <Play size={14} className="me-1" /> Start Pickup
-                                </Button>
-                              )}
-                              {item.status === 'In Transit' && (
-                                <Button variant="success" size="sm" className="d-flex align-items-center" onClick={() => updateStatus(item._id, 'Picked Up')}>
-                                  <CheckCircle size={14} className="me-1" /> Complete
-                                </Button>
-                              )}
-                              <Button variant="light" size="sm" className="text-secondary border d-flex align-items-center" onClick={() => setViewingMap(item)}>
-                                <MapPin size={14} className="me-1" /> View Map
-                              </Button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                      {activeTasks.length === 0 && (
-                        <tr>
-                          <td colSpan="4" className="text-center py-4 text-muted">You have no active rescues right now. Head to Dashboard to accept one!</td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </Table>
-                </Card>
+              <div 
+                className={`sidebar-link ${activeTab === 'active' ? 'active' : ''}`}
+                onClick={() => handleTabSwitch('active')}
+              >
+                <Navigation className="me-3" size={20} /> Active Pickups
               </div>
-            )}
-
-            {activeTab === 'history' && (
-              <div className="animate-in">
-                <h4 className="fw-bold mb-4">My Impact History</h4>
-                <Card className="border-0 shadow-sm rounded-4 overflow-hidden">
-                  <Table responsive hover className="mb-0 align-middle">
-                    <thead className="bg-light">
-                      <tr>
-                        <th>Listing</th>
-                        <th>Quantity Delivered</th>
-                        <th>Final Status</th>
-                        <th>Date Completed</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {history.map(item => (
-                        <tr key={item._id}>
-                          <td>
-                            <div className="fw-bold">{item.item}</div>
-                            <small className="text-muted">SF-{item._id.substring(item._id.length - 4)}</small>
-                          </td>
-                          <td>{item.quantity}</td>
-                          <td>{getStatusBadge(item.status)}</td>
-                          <td>{new Date(item.createdAt).toLocaleDateString()}</td> {/* Assuming createdAt acts as rough completion time since we lack a completedAt property */}
-                        </tr>
-                      ))}
-                      {history.length === 0 && (
-                        <tr>
-                          <td colSpan="4" className="text-center py-4 text-muted">You haven't completed any rescues yet. Get started today!</td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </Table>
-                </Card>
+              <div 
+                className={`sidebar-link ${activeTab === 'history' ? 'active' : ''}`}
+                onClick={() => handleTabSwitch('history')}
+              >
+                <CheckCircle className="me-3" size={20} /> Pickup History
               </div>
-            )}
-
-            {activeTab === 'notifications' && (
-              <div className="animate-in">
-                <h4 className="fw-bold mb-4">Alerts & Routing Notifications</h4>
-                {notifications.map(notif => (
-                  <Alert key={notif._id} variant="light" className="shadow-sm border-0 rounded-4 mb-3 d-flex align-items-center">
-                    <Bell className="text-primary me-3" size={20} />
-                    <div className="flex-grow-1">
-                      <div className="fw-bold">{notif.text}</div>
-                      <small className="text-muted">{notif.time || 'Just now'}</small>
-                    </div>
-                    <Button variant="link" className="text-muted p-0 ms-3" onClick={() => clearNotification(notif._id)}>Clear</Button>
-                  </Alert>
-                ))}
-                {notifications.length === 0 && (
-                  <div className="text-center py-5 text-muted">
-                    <Bell size={48} className="mb-3 opacity-50 mx-auto" />
-                    <p>No new alerts.</p>
-                  </div>
+              <div 
+                className={`sidebar-link ${activeTab === 'notifications' ? 'active' : ''}`}
+                onClick={() => handleTabSwitch('notifications')}
+              >
+                <Bell className="me-3" size={20} /> Notifications
+                {notifications.length > 0 && (
+                  <span className="badge bg-danger rounded-pill ms-auto px-2 py-1 align-items-center">{notifications.length}</span>
                 )}
               </div>
+            </div>
+          </Col>
+
+          <Col lg={9}>
+            {tabLoading || isLoading ? (
+              <DashboardOverviewSkeleton />
+            ) : (
+              <>
+                {activeTab === 'overview' && (
+                  <div className="animate-in">
+                    <h4 className="section-title mb-4">Volunteer Dashboard</h4>
+                    <Row className="g-4 mb-4">
+                      <Col md={4}>
+                        <div className="metric-card">
+                          <div className="metric-icon-wrap orange">
+                            <MapPin size={24} />
+                          </div>
+                          <div className="metric-value">{availablePickups.length}</div>
+                          <div className="metric-label">Open Pickups</div>
+                        </div>
+                      </Col>
+                      <Col md={4}>
+                        <div className="metric-card">
+                          <div className="metric-icon-wrap blue">
+                            <Truck size={24} />
+                          </div>
+                          <div className="metric-value">{activeTasks.length}</div>
+                          <div className="metric-label">Active Tasks</div>
+                        </div>
+                      </Col>
+                      <Col md={4}>
+                        <div className="metric-card">
+                          <div className="metric-icon-wrap green">
+                            <CheckCircle size={24} />
+                          </div>
+                          <div className="metric-value">{history.length}</div>
+                          <div className="metric-label">Lifetime Deliveries</div>
+                        </div>
+                      </Col>
+                    </Row>
+
+                    <Card className="border-0 shadow-sm rounded-4">
+                      <Card.Header className="bg-white py-3 border-0">
+                        <h5 className="section-title mb-0">Accept Open Pickups</h5>
+                      </Card.Header>
+                      <Card.Body className="p-0">
+                        <div className="table-responsive">
+                          {availablePickups.length === 0 ? (
+                            <EmptyState icon={Truck} title="No open pickups" sub="There are no pending rescues available right now." />
+                          ) : (
+                            <table className="app-table">
+                              <thead>
+                                <tr>
+                                  <th>Item</th>
+                                  <th>Quantity</th>
+                                  <th>Status</th>
+                                  <th>Actions</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {availablePickups.slice(0, 5).map(item => (
+                                  <tr key={item._id}>
+                                    <td>
+                                      <div className="item-name">{item.item}</div>
+                                      <div className="item-sub">ID: SF-{item._id ? item._id.substring(item._id.length - 4) : 'N/A'}</div>
+                                    </td>
+                                    <td className="fw-medium">{item.quantity}</td>
+                                    <td><span className="status-badge status-pending">Looking for Driver</span></td>
+                                    <td>
+                                      <button className="action-btn accept" onClick={() => updateStatus(item._id, 'Assigned', user.fullName)}>
+                                        <Check size={14} /> Accept
+                                      </button>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          )}
+                        </div>
+                      </Card.Body>
+                    </Card>
+                  </div>
+                )}
+
+                {activeTab === 'active' && (
+                  <div className="animate-in">
+                    <h4 className="section-title mb-4">My Active Rescues</h4>
+                    <Card className="border-0 shadow-sm rounded-4 overflow-hidden">
+                      <div className="table-responsive">
+                        {activeTasks.length === 0 ? (
+                          <EmptyState icon={Navigation} title="No active tasks" sub="You have no active rescues right now. Accept one!" />
+                        ) : (
+                          <table className="app-table">
+                            <thead>
+                              <tr>
+                                <th>Listing</th>
+                                <th>Details</th>
+                                <th>Status</th>
+                                <th>Live Actions</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {activeTasks.map(item => (
+                                <tr key={item._id}>
+                                  <td>
+                                    <div className="item-name">{item.item}</div>
+                                    <div className="item-sub">ID: SF-{item._id ? item._id.substring(item._id.length - 4) : 'N/A'}</div>
+                                  </td>
+                                  <td>
+                                    <div className="fw-medium mb-1">Qty: {item.quantity}</div>
+                                    <div className="small text-danger">Exp: {new Date(item.expiry).toLocaleString()}</div>
+                                  </td>
+                                  <td><StatusBadge status={item.status} /></td>
+                                  <td>
+                                    <div className="d-flex flex-wrap gap-2">
+                                      {item.status === 'Assigned' && (
+                                        <button className="action-btn edit" onClick={() => updateStatus(item._id, 'In Transit')}>
+                                          <Play size={14} /> Start Pickup
+                                        </button>
+                                      )}
+                                      {item.status === 'In Transit' && (
+                                        <button className="action-btn accept" onClick={() => updateStatus(item._id, 'Picked Up')}>
+                                          <CheckCircle size={14} /> Complete
+                                        </button>
+                                      )}
+                                      <button className="action-btn view" onClick={() => setViewingMap(item)}>
+                                        <MapPin size={14} /> Map
+                                      </button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        )}
+                      </div>
+                    </Card>
+                  </div>
+                )}
+
+                {activeTab === 'history' && (
+                  <div className="animate-in">
+                    <h4 className="section-title mb-4">My Impact History</h4>
+                    <Card className="border-0 shadow-sm rounded-4 overflow-hidden">
+                      <div className="table-responsive">
+                        {history.length === 0 ? (
+                          <EmptyState icon={CheckCircle} title="No deliveries yet" sub="Complete a delivery to see your impact here." />
+                        ) : (
+                          <table className="app-table">
+                            <thead>
+                              <tr>
+                                <th>Listing</th>
+                                <th>Quantity Delivered</th>
+                                <th>Final Status</th>
+                                <th>Date Completed</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {history.map(item => (
+                                <tr key={item._id}>
+                                  <td>
+                                    <div className="item-name">{item.item}</div>
+                                    <div className="item-sub">ID: SF-{item._id ? item._id.substring(item._id.length - 4) : 'N/A'}</div>
+                                  </td>
+                                  <td className="fw-medium">{item.quantity}</td>
+                                  <td><StatusBadge status={item.status} /></td>
+                                  <td className="small text-muted">{new Date(item.createdAt).toLocaleDateString()}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        )}
+                      </div>
+                    </Card>
+                  </div>
+                )}
+
+                {activeTab === 'notifications' && (
+                  <div className="animate-in">
+                    <h4 className="section-title mb-4">Alerts & Routing Notifications</h4>
+                    {notifLoading ? (
+                      <>
+                        <NotifSkeleton />
+                        <NotifSkeleton />
+                        <NotifSkeleton />
+                      </>
+                    ) : notifications.length > 0 ? (
+                      notifications.map(notif => (
+                        <div key={notif._id} className="notif-card purple">
+                          <div className="notif-icon">
+                            <Bell size={20} />
+                          </div>
+                          <div className="flex-grow-1">
+                            <div className="fw-bold fs-6 text-dark">{notif.text}</div>
+                            <div className="text-muted small mt-1">{notif.time || 'Just now'}</div>
+                          </div>
+                          <button className="notif-dismiss" onClick={() => clearNotification(notif._id)}>
+                             Dismiss
+                          </button>
+                        </div>
+                      ))
+                    ) : (
+                      <EmptyState icon={Bell} title="No alerts" sub="You don't have any new routing or system alerts." />
+                    )}
+                  </div>
+                )}
+              </>
             )}
           </Col>
         </Row>
@@ -511,94 +413,60 @@ const VolunteerDashboard = () => {
       {/* Map / Route Placeholder Modal */}
       <Modal show={!!viewingMap} onHide={() => setViewingMap(null)} centered size="lg" className="rounded-4">
         <Modal.Header closeButton className="border-0 pb-0">
-          <Modal.Title className="fw-bold text-primary">Live Route Tracking</Modal.Title>
+          <Modal.Title className="section-title text-primary">Live Route Tracking</Modal.Title>
         </Modal.Header>
         <Modal.Body className="pt-3">
-<<<<<<< HEAD
           {viewingMap && (
             <div className="text-center">
               <div className="mb-3 d-flex justify-content-between align-items-center">
-                <span className="text-muted small">Rescue ID: SF-{viewingMap._id?.substring(0, 8)}</span>
-                <Badge bg={viewingMap.status === 'In Transit' ? 'primary' : 'warning'}>
-                   {viewingMap.status}
-                </Badge>
-              </div>
-              <TrackingMap 
-                status={viewingMap.status}
-              />
-              <div className="mt-4 text-start bg-light p-3 rounded-4">
-                <div className="d-flex align-items-center mb-2">
-                  <Navigation size={18} className="me-2 text-primary" />
-                  <span className="fw-bold">Routing for: {viewingMap.item}</span>
+                <div>
+                   <div className="fw-bold">{viewingMap.item}</div>
+                   <span className="text-muted small">SF-{viewingMap._id?.substring(0, 8)}</span>
                 </div>
-                <div className="small text-muted">
-                  <p className="mb-1"><strong>Est. Time:</strong> 15 mins</p>
-                  <p className="mb-1"><strong>Traffic:</strong> Light - Optimal route selected</p>
+                <StatusBadge status={viewingMap.status} />
+              </div>
+              
+              <div className="rounded-4 bg-light d-flex flex-column align-items-center justify-content-center border" style={{ height: '300px' }}>
+                <div className="text-muted mb-3"><MapPin size={48} /></div>
+                <h5 className="fw-bold">Map View Unavailable</h5>
+                <p className="text-muted small mb-0 px-4">Interactive mapping is currently disabled in this view.</p>
+              </div>
+
+              <div className="mt-4 text-start bg-white border p-3 rounded-4 shadow-sm">
+                <div className="d-flex align-items-center mb-3">
+                  <Navigation size={20} className="me-2 text-primary" />
+                  <span className="fw-bold fs-6">Routing Info</span>
                 </div>
-              </div>
-            </div>
-          )}
-          <Button variant="primary" onClick={() => setViewingMap(null)} className="w-100 py-2 mt-4 fw-bold rounded-3">
-            Close Navigation
-=======
-           {viewingMap && (
-             <div className="text-center">
-              <div className="rounded-4 overflow-hidden border mb-3" style={{ height: '400px' }}>
-                <MapComponent 
-                  center={currentUserLocation}
-                  zoom={15}
-                  markers={[
-                    {
-                      coordinates: viewingMap.location?.coordinates || [79.8612, 6.9271],
-                      title: "Donation Pickup Site",
-                      subtitle: viewingMap.item,
-                      color: "#198754"
-                    },
-                    {
-                      coordinates: currentUserLocation,
-                      title: "Your Location",
-                      subtitle: "Tracking you live...",
-                      color: "#0d6efd"
-                    }
-                  ]}
-                />
-              </div>
-              <div className="text-start p-3 bg-light rounded-4">
-                <Row className="align-items-center">
-                  <Col md={8}>
-                    <p className="mb-1"><strong>Item:</strong> {viewingMap.item}</p>
-                    <p className="mb-1"><strong>Address:</strong> {viewingMap.location?.address || 'N/A'}</p>
-                    <p className="mb-0 text-primary small"><Navigation size={12} className="me-1" /> Dash-line shows path to destination.</p>
+                <Row className="g-3">
+                  <Col xs={4}>
+                    <div className="text-muted small fw-bold">Est. Time</div>
+                    <div className="fw-medium">15 mins</div>
                   </Col>
-                  <Col md={4} className="text-md-end mt-3 mt-md-0">
-                    <Button 
-                      variant="primary" 
-                      onClick={() => {
-                        const [lng, lat] = viewingMap.location?.coordinates || [0,0];
-                        window.open(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`, '_blank');
-                      }}
-                    >
-                      <Navigation size={14} className="me-1" /> Navigate
-                    </Button>
+                  <Col xs={4}>
+                    <div className="text-muted small fw-bold">Distance</div>
+                    <div className="fw-medium">4.2 km</div>
+                  </Col>
+                  <Col xs={4}>
+                    <div className="text-muted small fw-bold">Traffic</div>
+                    <div className="fw-medium text-success">Light</div>
                   </Col>
                 </Row>
               </div>
             </div>
           )}
-          <Button variant="primary" onClick={() => setViewingMap(null)} className="w-100 py-2 mt-4 fw-bold">
-            Close Map
->>>>>>> Sabeshhan
-          </Button>
+          <button className="action-btn view w-100 py-2 mt-4 fs-6" onClick={() => setViewingMap(null)}>
+            Close Navigation
+          </button>
         </Modal.Body>
       </Modal>
 
       <ToastContainer position="bottom-end" className="p-3" style={{ zIndex: 9999 }}>
-        <Toast show={showToast} onClose={() => setShowToast(false)} delay={5000} autohide>
-          <Toast.Header>
-            <Bell className="me-2 text-primary" size={16} />
-            <strong className="me-auto">Notification</strong>
+        <Toast show={showToast} onClose={() => setShowToast(false)} delay={5000} autohide className="border-0 shadow">
+          <Toast.Header className="border-bottom-0 pt-3 px-3">
+            <Bell className="me-2 text-warning" size={16} />
+            <strong className="me-auto text-dark">Notification</strong>
           </Toast.Header>
-          <Toast.Body>{toastMessage}</Toast.Body>
+          <Toast.Body className="px-3 pb-3 text-muted">{toastMessage}</Toast.Body>
         </Toast>
       </ToastContainer>
     </div>

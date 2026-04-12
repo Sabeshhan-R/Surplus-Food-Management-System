@@ -13,18 +13,12 @@
     "vite": "^7.3.1"
   },
   "dependencies": {
-<<<<<<< HEAD
     "@react-google-maps/api": "^2.20.8",
-=======
->>>>>>> Sabeshhan
     "@reduxjs/toolkit": "^2.11.2",
     "axios": "^1.13.6",
     "bootstrap": "^5.3.8",
     "lucide-react": "^0.577.0",
-<<<<<<< HEAD
-=======
     "maplibre-gl": "^5.21.1",
->>>>>>> Sabeshhan
     "react": "^19.2.4",
     "react-bootstrap": "^2.10.10",
     "react-dom": "^19.2.4",
