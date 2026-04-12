@@ -34,11 +34,42 @@ const foodListingSchema = new mongoose.Schema({
     ref: 'User',
     required: true
   },
+<<<<<<< HEAD
+=======
+  location: {
+    type: {
+      type: String,
+      enum: ['Point'],
+      default: 'Point'
+    },
+    coordinates: {
+      type: [Number], // [longitude, latitude]
+      required: [true, 'Please provide the coordinates']
+    },
+    address: String
+  },
+  volunteerLocation: {
+    type: {
+      type: String,
+      enum: ['Point'],
+      default: 'Point'
+    },
+    coordinates: {
+      type: [Number], // [longitude, latitude]
+      default: [0, 0]
+    }
+  },
+>>>>>>> Sabeshhan
   createdAt: {
     type: Date,
     default: Date.now
   }
 });
 
+<<<<<<< HEAD
+=======
+foodListingSchema.index({ location: '2dsphere' });
+
+>>>>>>> Sabeshhan
 const FoodListing = mongoose.model('FoodListing', foodListingSchema);
 module.exports = FoodListing;

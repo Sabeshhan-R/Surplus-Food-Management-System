@@ -18,19 +18,43 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: [true, 'Please provide a password'],
     minlength: 8,
+<<<<<<< HEAD
     select: false // Don't return password by default
+=======
+    select: false 
+>>>>>>> Sabeshhan
   },
   role: {
     type: String,
     enum: ['Donor', 'NGO', 'Volunteer', 'Admin'],
     default: 'Donor'
   },
+<<<<<<< HEAD
+=======
+  location: {
+    type: {
+      type: String,
+      enum: ['Point'],
+      default: 'Point'
+    },
+    coordinates: {
+      type: [Number], 
+      default: [0, 0]
+    },
+    address: String
+  },
+>>>>>>> Sabeshhan
   createdAt: {
     type: Date,
     default: Date.now
   }
 });
 
+<<<<<<< HEAD
+=======
+userSchema.index({ location: '2dsphere' });
+
+>>>>>>> Sabeshhan
 // Hash password before saving
 userSchema.pre('save', async function() {
   if (!this.isModified('password')) return;

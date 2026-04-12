@@ -11,22 +11,42 @@ import {
   Heart,
   Eye,
   Check,
+<<<<<<< HEAD
   X
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import TrackingMap from '../components/TrackingMap';
+=======
+  X,
+  MapPin
+} from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import API from '../api/axios';
+import MapComponent from '../components/MapComponent';
+import { TableSkeleton } from '../components/Skeleton';
+>>>>>>> Sabeshhan
 
 const API_URL = 'http://localhost:5000/api/listings';
 
 const NgoDashboard = () => {
   const navigate = useNavigate();
+<<<<<<< HEAD
   const [user, setUser] = useState(JSON.parse(localStorage.getItem('user')) || { fullName: 'NGO User' });
   const [activeTab, setActiveTab] = useState('overview');
   const [availableDonations, setAvailableDonations] = useState([]);
   const [myRequests, setMyRequests] = useState([]);
   const [viewingListing, setViewingListing] = useState(null);
   const [trackingItem, setTrackingItem] = useState(null);
+=======
+  const [user, setUser] = useState(JSON.parse(sessionStorage.getItem('user')) || { fullName: 'NGO User' });
+  const [activeTab, setActiveTab] = useState('overview');
+  const [availableDonations, setAvailableDonations] = useState([]);
+  const [myRequests, setMyRequests] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [viewingListing, setViewingListing] = useState(null);
+  const [trackingListing, setTrackingListing] = useState(null);
+>>>>>>> Sabeshhan
 
   const [notifications, setNotifications] = useState([]);
   const [showToast, setShowToast] = useState(false);
@@ -35,7 +55,11 @@ const NgoDashboard = () => {
 
   const fetchNotifications = async () => {
     try {
+<<<<<<< HEAD
       const res = await axios.get(`http://localhost:5000/api/notifications/${user.id}`);
+=======
+      const res = await API.get(`http://localhost:5000/api/notifications/${user.id}`);
+>>>>>>> Sabeshhan
       setNotifications(res.data.data.notifications);
     } catch (err) {
       console.error('Error fetching notifications:', err);
@@ -44,7 +68,11 @@ const NgoDashboard = () => {
 
   const addNotification = async (text) => {
     try {
+<<<<<<< HEAD
       await axios.post('http://localhost:5000/api/notifications', { userId: user.id, text });
+=======
+      await API.post('http://localhost:5000/api/notifications', { userId: user.id, text });
+>>>>>>> Sabeshhan
       fetchNotifications();
       setToastMessage(text);
       setShowToast(true);
@@ -55,7 +83,11 @@ const NgoDashboard = () => {
 
   const clearNotification = async (id) => {
     try {
+<<<<<<< HEAD
       await axios.delete(`http://localhost:5000/api/notifications/${id}`);
+=======
+      await API.delete(`http://localhost:5000/api/notifications/${id}`);
+>>>>>>> Sabeshhan
       setNotifications(prev => prev.filter(n => n._id !== id));
     } catch (err) {
       console.error('Error clearing notification:', err);
@@ -63,13 +95,22 @@ const NgoDashboard = () => {
   };
 
   const handleLogout = () => {
+<<<<<<< HEAD
     localStorage.removeItem('user');
+=======
+    sessionStorage.removeItem('user');
+    sessionStorage.removeItem('token');
+>>>>>>> Sabeshhan
     navigate('/auth');
   };
 
   const fetchListings = async () => {
     try {
+<<<<<<< HEAD
       const res = await axios.get(API_URL);
+=======
+      const res = await API.get(API_URL);
+>>>>>>> Sabeshhan
       const allListings = res.data.data.listings;
 
       if (prevListingsRef.current.length > 0) {
@@ -97,6 +138,11 @@ const NgoDashboard = () => {
       setMyRequests(allListings.filter(l => l.status === 'Assigned' || l.status === 'In Transit' || l.status === 'Picked Up'));
     } catch (err) {
       console.error('Error fetching listings:', err);
+<<<<<<< HEAD
+=======
+    } finally {
+      setIsLoading(false);
+>>>>>>> Sabeshhan
     }
   };
 
@@ -112,7 +158,11 @@ const NgoDashboard = () => {
 
   const handleAcceptDonation = async (id) => {
     try {
+<<<<<<< HEAD
       await axios.put(`${API_URL}/${id}`, { status: 'Assigned', volunteer: 'Pending Assignment' });
+=======
+      await API.put(`${API_URL}/${id}`, { status: 'Assigned', volunteer: 'Pending Assignment' });
+>>>>>>> Sabeshhan
       fetchListings();
     } catch (err) {
       console.error('Error accepting donation:', err);
@@ -123,7 +173,11 @@ const NgoDashboard = () => {
   const handleRejectDonation = async (id) => {
     if (window.confirm("Are you sure you want to reject this donation?")) {
       try {
+<<<<<<< HEAD
         await axios.put(`${API_URL}/${id}`, { status: 'Rejected', volunteer: 'Not Assigned' });
+=======
+        await API.put(`${API_URL}/${id}`, { status: 'Rejected', volunteer: 'Not Assigned' });
+>>>>>>> Sabeshhan
         fetchListings();
       } catch (err) {
         console.error('Error rejecting donation:', err);
@@ -232,6 +286,7 @@ const NgoDashboard = () => {
                     <h5 className="fw-bold mb-0">Recent Available Donations</h5>
                   </Card.Header>
                   <Card.Body>
+<<<<<<< HEAD
                     <Table responsive hover borderless className="align-middle">
                       <thead className="bg-light">
                         <tr>
@@ -264,6 +319,44 @@ const NgoDashboard = () => {
                         )}
                       </tbody>
                     </Table>
+=======
+                    {isLoading ? (
+                      <TableSkeleton rows={3} />
+                    ) : (
+                      <Table responsive hover borderless className="align-middle">
+                        <thead className="bg-light">
+                          <tr>
+                            <th>Item</th>
+                            <th>Quantity</th>
+                            <th>Expiry</th>
+                            <th>Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {availableDonations.slice(0, 5).map(item => (
+                            <tr key={item._id}>
+                              <td className="fw-bold">{item.item}</td>
+                              <td>{item.quantity}</td>
+                              <td>{new Date(item.expiry).toLocaleString()}</td>
+                              <td>
+                                <Button variant="outline-success" size="sm" className="me-2" onClick={() => handleAcceptDonation(item._id)}>
+                                  <Check size={14} className="me-1" /> Accept
+                                </Button>
+                                <Button variant="link" size="sm" className="p-0 text-primary" onClick={() => setViewingListing(item)}>
+                                  <Eye size={16} />
+                                </Button>
+                              </td>
+                            </tr>
+                          ))}
+                          {availableDonations.length === 0 && (
+                            <tr>
+                              <td colSpan="4" className="text-center py-4 text-muted">No donations currently available.</td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </Table>
+                    )}
+>>>>>>> Sabeshhan
                   </Card.Body>
                 </Card>
               </div>
@@ -340,10 +433,17 @@ const NgoDashboard = () => {
                           <td>{item.quantity}</td>
                           <td>{getStatusBadge(item.status)}</td>
                           <td>
+<<<<<<< HEAD
                              <Button variant="outline-primary" size="sm" className="me-2 d-flex align-items-center" onClick={() => setTrackingItem(item)}>
                                <Truck size={14} className="me-1" /> Track Pickup
                              </Button>
                            </td>
+=======
+                            <Button variant="outline-primary" size="sm" className="me-2 d-flex align-items-center" onClick={() => setTrackingListing(item)}>
+                              <Truck size={14} className="me-1" /> Track Pickup
+                            </Button>
+                          </td>
+>>>>>>> Sabeshhan
                         </tr>
                       ))}
                       {myRequests.length === 0 && (
@@ -433,6 +533,7 @@ const NgoDashboard = () => {
       </Modal>
 
       {/* Tracking Modal */}
+<<<<<<< HEAD
       <Modal show={!!trackingItem} onHide={() => setTrackingItem(null)} centered size="lg" className="rounded-4">
         <Modal.Header closeButton className="border-0 pb-0">
           <Modal.Title className="fw-bold text-primary">
@@ -461,6 +562,50 @@ const NgoDashboard = () => {
             </div>
           )}
           <Button variant="outline-primary" onClick={() => setTrackingItem(null)} className="w-100 py-2 fw-bold">
+=======
+      <Modal show={!!trackingListing} onHide={() => setTrackingListing(null)} centered size="lg" className="rounded-4">
+        <Modal.Header closeButton className="border-0 pb-0">
+          <Modal.Title className="fw-bold text-primary">Live Food Tracking</Modal.Title>
+        </Modal.Header>
+        <Modal.Body className="pt-2">
+          {trackingListing && (
+            <div className="text-center">
+              <div className="rounded-4 overflow-hidden border mb-3" style={{ height: '400px' }}>
+                <MapComponent 
+                  center={trackingListing.location?.coordinates || [79.8612, 6.9271]}
+                  zoom={15}
+                  markers={[
+                    {
+                      coordinates: trackingListing.location?.coordinates || [79.8612, 6.9271],
+                      title: "Pickup Point",
+                      subtitle: trackingListing.item,
+                      color: "#198754"
+                    },
+                    ...(trackingListing.status === 'In Transit' && trackingListing.volunteerLocation?.coordinates?.[0] !== 0 ? [{
+                      coordinates: trackingListing.volunteerLocation.coordinates,
+                      title: "Moving Volunteer",
+                      subtitle: `Courier: ${trackingListing.volunteer}`,
+                      color: "#0d6efd"
+                    }] : [])
+                  ]}
+                />
+              </div>
+              <div className="text-start p-3 bg-light rounded-4">
+                <Row>
+                  <Col md={6}>
+                    <p className="mb-1"><strong>Food Item:</strong> {trackingListing.item}</p>
+                    <p className="mb-1"><strong>Status:</strong> {trackingListing.status}</p>
+                  </Col>
+                  <Col md={6}>
+                    <p className="mb-1"><strong>Volunteer:</strong> {trackingListing.volunteer || 'Searching...'}</p>
+                    <p className="mb-1"><strong>Pickup Point:</strong> {trackingListing.location?.address || 'See map'}</p>
+                  </Col>
+                </Row>
+              </div>
+            </div>
+          )}
+          <Button variant="secondary" onClick={() => setTrackingListing(null)} className="w-100 py-2 fw-bold mt-3">
+>>>>>>> Sabeshhan
             Close Tracking
           </Button>
         </Modal.Body>
