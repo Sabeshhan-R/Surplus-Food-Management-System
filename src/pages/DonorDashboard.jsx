@@ -61,7 +61,8 @@ const DonorDashboard = () => {
     item: '',
     quantity: '',
     type: 'Cooked Meal',
-    expiry: ''
+    expiry: '',
+    donorPhoto: ''
   });
   const [trackingItem, setTrackingItem] = useState(null);
   const [notifications, setNotifications] = useState([]);
@@ -160,7 +161,7 @@ const DonorDashboard = () => {
       }
       setShowModal(false);
       setEditingListing(null);
-      setFormData({ item: '', quantity: '', type: 'Cooked Meal', expiry: '' });
+      setFormData({ item: '', quantity: '', type: 'Cooked Meal', expiry: '', donorPhoto: '' });
     } catch (err) {
       console.error('Error saving listing:', err);
       alert('Failed to save listing');
@@ -173,14 +174,15 @@ const DonorDashboard = () => {
       item: listing.item,
       quantity: listing.quantity,
       type: listing.type || 'Cooked Meal',
-      expiry: listing.expiry
+      expiry: listing.expiry,
+      donorPhoto: listing.donorPhoto || ''
     });
     setShowModal(true);
   };
 
   const handleCreateClick = () => {
     setEditingListing(null);
-    setFormData({ item: '', quantity: '', type: 'Cooked Meal', expiry: '' });
+    setFormData({ item: '', quantity: '', type: 'Cooked Meal', expiry: '', donorPhoto: '' });
     setShowModal(true);
   };
 
@@ -195,6 +197,29 @@ const DonorDashboard = () => {
       }
     }
   };
+
+  const handleImageUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if(file.size > 10 * 1024 * 1024) {
+        alert("File size exceeds 10MB limit.");
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFormData({ ...formData, donorPhoto: reader.result });
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const getExpiringListings = () => {
+    const now = new Date();
+    const next24 = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+    return listings.filter(l => new Date(l.expiry) > now && new Date(l.expiry) <= next24 && (l.status === 'Pending' || l.status === 'Assigned'));
+  };
+
+  const expiringItems = getExpiringListings();
 
   return (
     <div className="bg-light min-vh-100">
@@ -217,6 +242,18 @@ const DonorDashboard = () => {
       </div>
 
       <Container>
+        {expiringItems.length > 0 && (
+          <Alert variant="warning" className="mb-4 d-flex align-items-center rounded-4 border-warning shadow-sm">
+            <Clock className="me-3 text-warning" size={24} />
+            <div>
+              <h6 className="alert-heading mb-1 fw-bold">Expiry Alert!</h6>
+              <p className="mb-0 small text-dark">
+                You have {expiringItems.length} listing(s) expiring within the next 24 hours. 
+                Please ensure they are picked up or check their status.
+              </p>
+            </div>
+          </Alert>
+        )}
         <Row>
           <Col lg={3} className="mb-4">
             <div className="sidebar-card">
@@ -502,6 +539,21 @@ const DonorDashboard = () => {
               </Col>
             </Row>
 
+            <Form.Group className="mb-3">
+              <Form.Label className="small fw-bold text-muted">Food Photo (Optional)</Form.Label>
+              <Form.Control
+                type="file"
+                accept="image/*"
+                onChange={handleImageUpload}
+                className="py-2"
+              />
+              {formData.donorPhoto && (
+                <div className="mt-2 text-center bg-light p-2 rounded border">
+                  <img src={formData.donorPhoto} alt="Food Preview" style={{ maxHeight: '120px', objectFit: 'contain' }} className="rounded shadow-sm" />
+                </div>
+              )}
+            </Form.Group>
+
             <Form.Group className="mb-4">
               <Form.Label className="small fw-bold text-muted">Expiry/Best Before</Form.Label>
               <Form.Control
@@ -554,6 +606,14 @@ const DonorDashboard = () => {
                   <div className="text-muted small fw-bold mt-2">Expiry / Best Before</div>
                   <div className="fw-medium text-danger">{new Date(viewingListing.expiry).toLocaleString()}</div>
                 </Col>
+                {viewingListing.donorPhoto && (
+                  <Col xs={12}>
+                    <div className="text-muted small fw-bold mt-2 mb-2">Attached Photo</div>
+                    <div className="text-center bg-light p-2 rounded border">
+                      <img src={viewingListing.donorPhoto} alt="Food" style={{ maxHeight: '150px', objectFit: 'contain' }} className="rounded shadow-sm w-100" />
+                    </div>
+                  </Col>
+                )}
               </Row>
             </div>
           )}

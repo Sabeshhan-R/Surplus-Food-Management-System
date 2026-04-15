@@ -52,6 +52,9 @@ const VolunteerDashboard = () => {
   const [activeTasks, setActiveTasks] = useState([]);
   const [history, setHistory] = useState([]);
   const [viewingMap, setViewingMap] = useState(null);
+  const [showDeliveryModal, setShowDeliveryModal] = useState(false);
+  const [deliveryData, setDeliveryData] = useState({ listingId: null, photoUrl: '' });
+  const [viewingProof, setViewingProof] = useState(null);
 
   const [notifications, setNotifications] = useState([]);
   const [showToast, setShowToast] = useState(false);
@@ -137,14 +140,40 @@ const VolunteerDashboard = () => {
     return () => clearInterval(interval);
   }, [user.id]);
 
-  const updateStatus = async (id, newStatus, volunteerName = user.fullName) => {
+  const updateStatus = async (id, newStatus, volunteerName = user.fullName, extraData = {}) => {
     try {
-      await axios.put(`${API_URL}/${id}`, { status: newStatus, volunteer: volunteerName });
+      await axios.put(`${API_URL}/${id}`, { status: newStatus, volunteer: volunteerName, ...extraData });
       fetchListings();
     } catch (err) {
       console.error('Error updating status:', err);
       alert('Failed to update status');
     }
+  };
+
+  const handleDeliveryImageUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if(file.size > 10 * 1024 * 1024) {
+        alert("File size exceeds 10MB limit.");
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setDeliveryData({ ...deliveryData, photoUrl: reader.result });
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const openDeliveryModal = (id) => {
+    setDeliveryData({ listingId: id, photoUrl: '' });
+    setShowDeliveryModal(true);
+  };
+
+  const submitDelivery = async (e) => {
+    e.preventDefault();
+    await updateStatus(deliveryData.listingId, 'Picked Up', user.fullName, { deliveryPhoto: deliveryData.photoUrl });
+    setShowDeliveryModal(false);
   };
 
   return (
@@ -319,7 +348,7 @@ const VolunteerDashboard = () => {
                                         </button>
                                       )}
                                       {item.status === 'In Transit' && (
-                                        <button className="action-btn accept" onClick={() => updateStatus(item._id, 'Picked Up')}>
+                                        <button className="action-btn accept" onClick={() => openDeliveryModal(item._id)}>
                                           <CheckCircle size={14} /> Complete
                                         </button>
                                       )}
@@ -352,6 +381,7 @@ const VolunteerDashboard = () => {
                                 <th>Listing</th>
                                 <th>Quantity Delivered</th>
                                 <th>Final Status</th>
+                                <th>Photo Proof</th>
                                 <th>Date Completed</th>
                               </tr>
                             </thead>
@@ -364,6 +394,13 @@ const VolunteerDashboard = () => {
                                   </td>
                                   <td className="fw-medium">{item.quantity}</td>
                                   <td><StatusBadge status={item.status} /></td>
+                                  <td>
+                                    {item.deliveryPhoto ? (
+                                      <button className="action-btn view" onClick={() => setViewingProof(item.deliveryPhoto)}>View Proof</button>
+                                    ) : (
+                                      <span className="small text-muted">No Proof</span>
+                                    )}
+                                  </td>
                                   <td className="small text-muted">{new Date(item.createdAt).toLocaleDateString()}</td>
                                 </tr>
                               ))}
@@ -456,6 +493,48 @@ const VolunteerDashboard = () => {
           )}
           <button className="action-btn view w-100 py-2 mt-4 fs-6" onClick={() => setViewingMap(null)}>
             Close Navigation
+          </button>
+        </Modal.Body>
+      </Modal>
+
+      {/* Delivery Photo Modal */}
+      <Modal show={showDeliveryModal} onHide={() => setShowDeliveryModal(false)} centered className="rounded-4">
+        <Modal.Header closeButton className="border-0 pb-0">
+          <Modal.Title className="section-title text-primary">Complete Delivery</Modal.Title>
+        </Modal.Header>
+        <Modal.Body className="pt-2">
+          <p className="text-muted small mb-4">Upload a photo to confirm your drop-off.</p>
+          <form onSubmit={submitDelivery}>
+            <div className="mb-4">
+              <label className="small fw-bold text-muted mb-2">Photo Proof</label>
+              <input 
+                type="file" 
+                accept="image/*"
+                className="form-control py-2" 
+                onChange={handleDeliveryImageUpload}
+              />
+              {deliveryData.photoUrl && (
+                <div className="mt-3 text-center bg-light p-2 rounded border">
+                  <img src={deliveryData.photoUrl} alt="Delivery Proof Preview" style={{ maxHeight: '150px', objectFit: 'contain' }} className="rounded shadow-sm" />
+                </div>
+              )}
+            </div>
+            <button type="submit" className="action-btn accept w-100 py-2 fs-6">Mark as Completed</button>
+          </form>
+        </Modal.Body>
+      </Modal>
+
+      {/* View Proof Modal */}
+      <Modal show={!!viewingProof} onHide={() => setViewingProof(null)} centered className="rounded-4">
+        <Modal.Header closeButton className="border-0 pb-0">
+          <Modal.Title className="section-title text-success">Delivery Proof</Modal.Title>
+        </Modal.Header>
+        <Modal.Body className="text-center pb-4">
+          {viewingProof && (
+            <img src={viewingProof} alt="Delivery Proof" className="img-fluid rounded shadow-sm border" style={{ maxHeight: '400px' }} />
+          )}
+          <button className="action-btn view w-100 py-2 mt-4" onClick={() => setViewingProof(null)}>
+            Close
           </button>
         </Modal.Body>
       </Modal>

@@ -55,6 +55,8 @@ const NgoDashboard = () => {
   const [myRequests, setMyRequests] = useState([]);
   const [viewingListing, setViewingListing] = useState(null);
   const [trackingItem, setTrackingItem] = useState(null);
+  const [showPickupModal, setShowPickupModal] = useState(false);
+  const [pickupData, setPickupData] = useState({ listingId: null, pickupTime: '' });
 
   const [notifications, setNotifications] = useState([]);
   const [showToast, setShowToast] = useState(false);
@@ -147,9 +149,20 @@ const NgoDashboard = () => {
     return () => clearInterval(interval);
   }, [user.id]);
 
-  const handleAcceptDonation = async (id) => {
+  const openPickupModal = (id) => {
+    setPickupData({ listingId: id, pickupTime: '' });
+    setShowPickupModal(true);
+  };
+
+  const submitPickupSchedule = async (e) => {
+    e.preventDefault();
     try {
-      await axios.put(`${API_URL}/${id}`, { status: 'Assigned', volunteer: 'Pending Assignment' });
+      await axios.put(`${API_URL}/${pickupData.listingId}`, { 
+        status: 'Assigned', 
+        volunteer: 'Pending Assignment',
+        pickupTime: pickupData.pickupTime
+      });
+      setShowPickupModal(false);
       fetchListings();
     } catch (err) {
       console.error('Error accepting donation:', err);
@@ -290,7 +303,7 @@ const NgoDashboard = () => {
                                     <td className="small text-muted">{new Date(item.expiry).toLocaleString()}</td>
                                     <td>
                                       <div className="d-flex gap-2">
-                                        <button className="action-btn accept" onClick={() => handleAcceptDonation(item._id)}>
+                                        <button className="action-btn accept" onClick={() => openPickupModal(item._id)}>
                                           <Check size={14} /> Accept
                                         </button>
                                         <button className="action-btn view" onClick={() => setViewingListing(item)}>
@@ -337,7 +350,7 @@ const NgoDashboard = () => {
                                   <td className="small text-muted">{new Date(item.expiry).toLocaleString()}</td>
                                   <td>
                                     <div className="d-flex gap-2">
-                                      <button className="action-btn accept" onClick={() => handleAcceptDonation(item._id)}>
+                                      <button className="action-btn accept" onClick={() => openPickupModal(item._id)}>
                                         <Check size={14} /> Accept
                                       </button>
                                       <button className="action-btn reject" onClick={() => handleRejectDonation(item._id)}>
@@ -371,6 +384,7 @@ const NgoDashboard = () => {
                               <tr>
                                 <th>Listing</th>
                                 <th>Quantity</th>
+                                <th>Pickup Time</th>
                                 <th>Status</th>
                                 <th>Actions</th>
                               </tr>
@@ -383,6 +397,7 @@ const NgoDashboard = () => {
                                     <div className="item-sub">ID: SF-{item._id ? item._id.substring(item._id.length - 4) : 'N/A'}</div>
                                   </td>
                                   <td className="fw-medium">{item.quantity}</td>
+                                  <td className="small text-muted">{item.pickupTime ? new Date(item.pickupTime).toLocaleString() : 'Not Set'}</td>
                                   <td><StatusBadge status={item.status} /></td>
                                   <td>
                                     <button className="action-btn primary" onClick={() => setTrackingItem(item)}>
@@ -470,7 +485,7 @@ const NgoDashboard = () => {
              <Col xs={6}>
                <button 
                  className="action-btn accept w-100 py-2 text-center" 
-                 onClick={() => { handleAcceptDonation(viewingListing._id); setViewingListing(null); }}
+                 onClick={() => { openPickupModal(viewingListing._id); setViewingListing(null); }}
                >
                  Accept
                </button>
@@ -514,6 +529,29 @@ const NgoDashboard = () => {
           <button className="action-btn view w-100 py-2 mt-2" onClick={() => setTrackingItem(null)}>
             Close Tracking
           </button>
+        </Modal.Body>
+      </Modal>
+
+      {/* Pickup Schedule Modal */}
+      <Modal show={showPickupModal} onHide={() => setShowPickupModal(false)} centered className="rounded-4">
+        <Modal.Header closeButton className="border-0 pb-0">
+          <Modal.Title className="section-title text-primary">Schedule Pickup</Modal.Title>
+        </Modal.Header>
+        <Modal.Body className="pt-2">
+          <p className="text-muted small mb-4">Set a pickup time for the volunteer to collect this donation.</p>
+          <form onSubmit={submitPickupSchedule}>
+            <div className="mb-4">
+              <label className="small fw-bold text-muted mb-2">Pickup Time</label>
+              <input 
+                type="datetime-local" 
+                className="form-control py-2" 
+                required
+                value={pickupData.pickupTime}
+                onChange={(e) => setPickupData({ ...pickupData, pickupTime: e.target.value })}
+              />
+            </div>
+            <button type="submit" className="action-btn accept w-100 py-2 fs-6">Confirm Assignment</button>
+          </form>
         </Modal.Body>
       </Modal>
 
