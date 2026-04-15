@@ -34,8 +34,6 @@ const foodListingSchema = new mongoose.Schema({
     ref: 'User',
     required: true
   },
-<<<<<<< HEAD
-=======
   location: {
     type: {
       type: String,
@@ -59,17 +57,24 @@ const foodListingSchema = new mongoose.Schema({
       default: [0, 0]
     }
   },
->>>>>>> Sabeshhan
+  donorPhoto: {
+    type: String, // Store Base64 image string or URL
+    default: ''
+  },
+  deliveryPhoto: {
+    type: String, // Store Base64 image string or URL
+    default: ''
+  },
+  pickupTime: {
+    type: Date,
+    default: null
+  },
   createdAt: {
     type: Date,
     default: Date.now
   }
 });
 
-<<<<<<< HEAD
-=======
 foodListingSchema.index({ location: '2dsphere' });
-
->>>>>>> Sabeshhan
 const FoodListing = mongoose.model('FoodListing', foodListingSchema);
 module.exports = FoodListing;

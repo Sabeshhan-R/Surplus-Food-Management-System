@@ -1,25 +1,16 @@
-<<<<<<< HEAD
-import React, { useState } from 'react';
-import { Container, Form, Button, Card, Row, Col, Alert, Spinner } from 'react-bootstrap';
-import { LogIn, UserPlus, KeyRound, ArrowLeft, Mail, Lock, User, ShieldCheck } from 'lucide-react';
-import axios from 'axios';
-=======
 import React, { useState, useEffect } from 'react';
-import { Container, Form, Button, Card, Row, Col, Alert, Spinner } from 'react-bootstrap';
-import { LogIn, UserPlus, KeyRound, ArrowLeft, Mail, Lock, User, ShieldCheck } from 'lucide-react';
-import API from '../api/axios';
->>>>>>> Sabeshhan
+import { Form, Button, Row, Col, Alert, Spinner } from 'react-bootstrap';
+import { LogIn, UserPlus, KeyRound, ArrowLeft, Mail, Lock, User, Leaf } from 'lucide-react';
+import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 
 const API_URL = 'http://localhost:5000/api/auth';
 
 const AuthPage = () => {
   const navigate = useNavigate();
-<<<<<<< HEAD
-=======
 
   useEffect(() => {
-    const user = JSON.parse(sessionStorage.getItem('user'));
+    const user = JSON.parse(localStorage.getItem('user'));
     if (user) {
       if (user.role === 'Donor') navigate('/donor');
       else if (user.role === 'NGO') navigate('/ngo');
@@ -27,7 +18,6 @@ const AuthPage = () => {
     }
   }, [navigate]);
 
->>>>>>> Sabeshhan
   const [mode, setMode] = useState('login'); // 'login' | 'register' | 'forgot'
   const [formData, setFormData] = useState({
     email: '',
@@ -48,18 +38,13 @@ const AuthPage = () => {
           throw new Error('Passwords do not match');
         }
         
-<<<<<<< HEAD
-        const response = await axios.post(`${API_URL}/register`, {
-=======
-        const response = await API.post('/auth/register', {
->>>>>>> Sabeshhan
+        await axios.post(`${API_URL}/register`, {
           fullName: formData.fullName,
           email: formData.email,
           password: formData.password,
           role: formData.role
         });
         
-<<<<<<< HEAD
         setStatus({ 
           type: 'success', 
           message: 'Registration successful! You can now log in.', 
@@ -68,39 +53,12 @@ const AuthPage = () => {
         setTimeout(() => setMode('login'), 2000);
       } else if (mode === 'login') {
         const response = await axios.post(`${API_URL}/login`, {
-=======
-        // Handle token and user on register
-        const userData = response.data.data.user;
-        const token = response.data.token;
-        sessionStorage.setItem('user', JSON.stringify(userData));
-        sessionStorage.setItem('token', token);
-
-        setStatus({ 
-          type: 'success', 
-          message: 'Registration successful! Redirecting...', 
-          loading: false 
-        });
-
-        setTimeout(() => {
-          if (userData.role === 'Donor') navigate('/donor');
-          else if (userData.role === 'NGO') navigate('/ngo');
-          else if (userData.role === 'Volunteer') navigate('/volunteer');
-        }, 1500);
-      } else if (mode === 'login') {
-        const response = await API.post('/auth/login', {
->>>>>>> Sabeshhan
           email: formData.email,
           password: formData.password
         });
         
         const userData = response.data.data.user;
-<<<<<<< HEAD
         localStorage.setItem('user', JSON.stringify(userData));
-=======
-        const token = response.data.token;
-        sessionStorage.setItem('user', JSON.stringify(userData));
-        sessionStorage.setItem('token', token);
->>>>>>> Sabeshhan
 
         setStatus({ 
           type: 'success', 
@@ -142,20 +100,21 @@ const AuthPage = () => {
       
       <Form onSubmit={handleSubmit}>
         <Form.Group className="mb-3">
-          <Form.Label><Mail size={18} className="me-2" />Email Address</Form.Label>
+          <Form.Label className="small fw-bold text-muted"><Mail size={14} className="me-1" />Email Address</Form.Label>
           <Form.Control 
             type="email" 
             name="email"
             placeholder="name@example.com" 
             required 
             onChange={handleChange}
+            className="py-2"
           />
         </Form.Group>
 
         <Form.Group className="mb-4">
-          <div className="d-flex justify-content-between">
-            <Form.Label><Lock size={18} className="me-2" />Password</Form.Label>
-            <a href="#" className="auth-link small" onClick={() => setMode('forgot')}>Forgot?</a>
+          <div className="d-flex justify-content-between align-items-center">
+            <Form.Label className="small fw-bold text-muted mb-0"><Lock size={14} className="me-1" />Password</Form.Label>
+            <span role="button" className="auth-link small" onClick={() => setMode('forgot')}>Forgot?</span>
           </div>
           <Form.Control 
             type="password" 
@@ -163,18 +122,19 @@ const AuthPage = () => {
             placeholder="••••••••" 
             required 
             onChange={handleChange}
+            className="py-2 mt-2"
           />
         </Form.Group>
 
-        <Button variant="primary" type="submit" className="w-100 mb-3" disabled={status.loading}>
-          {status.loading ? <Spinner animation="border" size="sm" className="me-2" /> : <LogIn size={20} className="me-2" />}
+        <button type="submit" className="action-btn primary w-100 py-2 mb-3" disabled={status.loading}>
+          {status.loading ? <Spinner animation="border" size="sm" className="me-2" /> : <LogIn size={18} className="me-2" />}
           Sign In
-        </Button>
+        </button>
       </Form>
       
-      <div className="auth-footer">
-        <span>Don't have an account? </span>
-        <a href="#" className="auth-link" onClick={() => setMode('register')}>Register Now</a>
+      <div className="text-center mt-4">
+        <span className="text-muted small">Don't have an account? </span>
+        <span role="button" className="auth-link small" onClick={() => setMode('register')}>Register Now</span>
       </div>
     </div>
   );
@@ -186,7 +146,7 @@ const AuthPage = () => {
       
       <Form onSubmit={handleSubmit}>
         <Form.Group className="mb-3">
-          <Form.Label><User size={18} className="me-2" />Full Name</Form.Label>
+          <Form.Label className="small fw-bold text-muted"><User size={14} className="me-1" />Full Name</Form.Label>
           <Form.Control 
             type="text" 
             name="fullName"
@@ -197,7 +157,7 @@ const AuthPage = () => {
         </Form.Group>
 
         <Form.Group className="mb-3">
-          <Form.Label><Mail size={18} className="me-2" />Email Address</Form.Label>
+          <Form.Label className="small fw-bold text-muted"><Mail size={14} className="me-1" />Email Address</Form.Label>
           <Form.Control 
             type="email" 
             name="email"
@@ -208,18 +168,32 @@ const AuthPage = () => {
         </Form.Group>
 
         <Form.Group className="mb-3">
-          <Form.Label><ShieldCheck size={18} className="me-2" />Select Role</Form.Label>
-          <Form.Select name="role" onChange={handleChange}>
-            <option value="Donor">Donor</option>
-            <option value="NGO">NGO</option>
-            <option value="Volunteer">Volunteer</option>
-          </Form.Select>
+          <Form.Label className="small fw-bold text-muted mb-2">Select Your Role</Form.Label>
+          <Row className="g-2">
+            {[
+              { role: 'Donor', icon: '🍲', desc: 'Donate Food' },
+              { role: 'NGO', icon: '❤️', desc: 'Receive Food' },
+              { role: 'Volunteer', icon: '🚚', desc: 'Deliver Food' }
+            ].map(r => (
+              <Col key={r.role} xs={4}>
+                <div 
+                  className={`border rounded-3 p-2 text-center cursor-pointer h-100 d-flex flex-column justify-content-center align-items-center transition ${formData.role === r.role ? 'border-success bg-success bg-opacity-10 shadow-sm' : 'border-light-subtle bg-white'}`}
+                  style={{ cursor: 'pointer' }}
+                  onClick={() => setFormData({ ...formData, role: r.role })}
+                >
+                  <div className="fs-4 mb-1">{r.icon}</div>
+                  <div className="fw-bold" style={{ fontSize: '0.75rem' }}>{r.role}</div>
+                  <div className="text-muted" style={{ fontSize: '0.65rem' }}>{r.desc}</div>
+                </div>
+              </Col>
+            ))}
+          </Row>
         </Form.Group>
 
         <Row>
           <Col md={6}>
             <Form.Group className="mb-3">
-              <Form.Label><Lock size={18} className="me-2" />Password</Form.Label>
+              <Form.Label className="small fw-bold text-muted"><Lock size={14} className="me-1" />Password</Form.Label>
               <Form.Control 
                 type="password" 
                 name="password"
@@ -231,7 +205,7 @@ const AuthPage = () => {
           </Col>
           <Col md={6}>
             <Form.Group className="mb-4">
-              <Form.Label>Confirm</Form.Label>
+              <Form.Label className="small fw-bold text-muted"><Lock size={14} className="me-1" />Confirm</Form.Label>
               <Form.Control 
                 type="password" 
                 name="confirmPassword"
@@ -243,15 +217,15 @@ const AuthPage = () => {
           </Col>
         </Row>
 
-        <Button variant="primary" type="submit" className="w-100 mb-3" disabled={status.loading}>
-          {status.loading ? <Spinner animation="border" size="sm" className="me-2" /> : <UserPlus size={20} className="me-2" />}
+        <button type="submit" className="action-btn primary w-100 py-2 mb-3" disabled={status.loading}>
+          {status.loading ? <Spinner animation="border" size="sm" className="me-2" /> : <UserPlus size={18} className="me-2" />}
           Create Account
-        </Button>
+        </button>
       </Form>
       
-      <div className="auth-footer">
-        <span>Already have an account? </span>
-        <a href="#" className="auth-link" onClick={() => setMode('login')}>Sign In</a>
+      <div className="text-center mt-3">
+        <span className="text-muted small">Already have an account? </span>
+        <span role="button" className="auth-link small" onClick={() => setMode('login')}>Sign In</span>
       </div>
     </div>
   );
@@ -263,26 +237,27 @@ const AuthPage = () => {
       
       <Form onSubmit={handleSubmit}>
         <Form.Group className="mb-4">
-          <Form.Label><Mail size={18} className="me-2" />Email Address</Form.Label>
+          <Form.Label className="small fw-bold text-muted"><Mail size={14} className="me-1" />Email Address</Form.Label>
           <Form.Control 
             type="email" 
             name="email"
             placeholder="name@example.com" 
             required 
             onChange={handleChange}
+            className="py-2"
           />
         </Form.Group>
 
-        <Button variant="primary" type="submit" className="w-100 mb-3" disabled={status.loading}>
-          {status.loading ? <Spinner animation="border" size="sm" className="me-2" /> : <KeyRound size={20} className="me-2" />}
+        <button type="submit" className="action-btn primary w-100 py-2 mb-3" disabled={status.loading}>
+          {status.loading ? <Spinner animation="border" size="sm" className="me-2" /> : <KeyRound size={18} className="me-2" />}
           Send Reset Link
-        </Button>
+        </button>
       </Form>
       
-      <div className="auth-footer">
-        <a href="#" className="auth-link d-flex align-items-center justify-content-center" onClick={() => setMode('login')}>
-          <ArrowLeft size={16} className="me-2" /> Back to Login
-        </a>
+      <div className="text-center mt-4">
+        <span role="button" className="auth-link small d-inline-flex align-items-center" onClick={() => setMode('login')}>
+          <ArrowLeft size={14} className="me-1" /> Back to Login
+        </span>
       </div>
     </div>
   );
@@ -291,14 +266,15 @@ const AuthPage = () => {
     <div className="auth-container">
       <div className="auth-card">
         <div className="text-center mb-4">
-          <div className="d-inline-flex align-items-center justify-content-center bg-success text-white rounded-circle p-3 mb-3" style={{ width: '60px', height: '60px' }}>
-            <LogIn size={30} />
+          <div className="d-inline-flex align-items-center justify-content-center text-white rounded-4 shadow-sm mb-3" style={{ width: '56px', height: '56px', background: 'linear-gradient(135deg, var(--primary), var(--primary-light))' }}>
+            <Leaf size={28} />
           </div>
-          <h1 className="h4" style={{ fontWeight: '800', letterSpacing: '-0.5px' }}>SurplusFood</h1>
+          <h1 className="h4 section-title mb-1">SurplusFood</h1>
+          <p className="text-muted small fw-medium">Rescue food. Feed lives.</p>
         </div>
 
         {status.message && (
-          <Alert variant={status.type} className="animate-in">
+          <Alert variant={status.type === 'danger' ? 'danger' : 'success'} className="animate-in shadow-sm rounded-3 py-2 px-3 small d-flex align-items-center border-0">
             {status.message}
           </Alert>
         )}
