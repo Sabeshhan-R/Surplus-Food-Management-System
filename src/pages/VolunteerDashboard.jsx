@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Container, Row, Col, Card, Alert, Toast, ToastContainer, Modal } from 'react-bootstrap';
+import { Container, Row, Col, Card, Toast, ToastContainer, Modal } from 'react-bootstrap';
 import {
   LayoutDashboard,
   LogOut,
@@ -12,10 +12,11 @@ import {
   Play
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import axios from '../api/axios';
+import TrackingMap from '../components/TrackingMap';
 import { SkeletonBox, MetricCardSkeleton, TableSkeleton, NotifSkeleton, DashboardOverviewSkeleton } from '../components/Skeleton';
 
-const API_URL = 'http://localhost:5000/api/listings';
+const API_URL = '/listings';
 
 const StatusBadge = ({ status }) => {
   let mappedClass = '';
@@ -42,7 +43,7 @@ const EmptyState = ({ icon: Icon, title, sub }) => (
 
 const VolunteerDashboard = () => {
   const navigate = useNavigate();
-  const [user, setUser] = useState(JSON.parse(localStorage.getItem('user')) || { fullName: 'Volunteer Hero', role: 'Volunteer' });
+  const [user, setUser] = useState(JSON.parse(sessionStorage.getItem('user')) || { fullName: 'Volunteer Hero', role: 'Volunteer' });
   const [activeTab, setActiveTab] = useState('overview');
   const [tabLoading, setTabLoading] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -52,14 +53,17 @@ const VolunteerDashboard = () => {
   const [activeTasks, setActiveTasks] = useState([]);
   const [history, setHistory] = useState([]);
   const [viewingMap, setViewingMap] = useState(null);
+  const [viewingMapId, setViewingMapId] = useState(null);
   const [showDeliveryModal, setShowDeliveryModal] = useState(false);
   const [deliveryData, setDeliveryData] = useState({ listingId: null, photoUrl: '' });
   const [viewingProof, setViewingProof] = useState(null);
+  const [routeInfo, setRouteInfo] = useState({ distance: 0, duration: 0 });
 
   const [notifications, setNotifications] = useState([]);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const prevListingsRef = useRef([]);
+  const watchIdRef = useRef(null);
 
   const handleTabSwitch = (tab) => {
     if (tab === activeTab) return;
@@ -72,10 +76,10 @@ const VolunteerDashboard = () => {
 
   const fetchNotifications = async () => {
     try {
-      const res = await axios.get(`http://localhost:5000/api/notifications/${user.id}`);
+      const res = await axios.get(`/notifications/${user.id}`);
       setNotifications(res.data.data.notifications);
     } catch (err) {
-      console.error('Error fetching notifications:', err);
+
     } finally {
       setNotifLoading(false);
     }
@@ -83,26 +87,27 @@ const VolunteerDashboard = () => {
 
   const addNotification = async (text) => {
     try {
-      await axios.post('http://localhost:5000/api/notifications', { userId: user.id, text });
+      await axios.post('/notifications', { userId: user.id, text });
       fetchNotifications();
       setToastMessage(text);
       setShowToast(true);
     } catch (err) {
-      console.error('Error adding notification:', err);
+
     }
   };
 
   const clearNotification = async (id) => {
     try {
-      await axios.delete(`http://localhost:5000/api/notifications/${id}`);
+      await axios.delete(`/notifications/${id}`);
       setNotifications(prev => prev.filter(n => n._id !== id));
     } catch (err) {
-      console.error('Error clearing notification:', err);
+
     }
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('user');
+    sessionStorage.removeItem('user');
+    sessionStorage.removeItem('token');
     navigate('/auth');
   };
 
@@ -121,10 +126,17 @@ const VolunteerDashboard = () => {
 
       prevListingsRef.current = allListings;
       setAvailablePickups(allListings.filter(l => l.status === 'Assigned' && l.volunteer === 'Pending Assignment'));
-      setActiveTasks(allListings.filter(l => (l.status === 'Assigned' || l.status === 'In Transit') && l.volunteer === user.fullName));
+      const tasks = allListings.filter(l => (l.status === 'Assigned' || l.status === 'In Transit') && l.volunteer === user.fullName);
+      setActiveTasks(tasks);
       setHistory(allListings.filter(l => l.status === 'Picked Up' && l.volunteer === user.fullName));
+      
+      // Update viewingMap state if it's currently open to reflect latest coordinates
+      if (viewingMapId) {
+        const updated = allListings.find(l => l._id === viewingMapId);
+        if (updated) setViewingMap(updated);
+      }
     } catch (err) {
-      console.error('Error fetching listings:', err);
+
     } finally {
       setIsLoading(false);
     }
@@ -135,17 +147,46 @@ const VolunteerDashboard = () => {
     fetchNotifications();
     const interval = setInterval(() => {
       fetchListings();
-      fetchNotifications();
     }, 3000);
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      if (watchIdRef.current) navigator.geolocation.clearWatch(watchIdRef.current);
+    };
   }, [user.id]);
+
+  useEffect(() => {
+    // Save volunteer GPS for any active task (Assigned or In Transit)
+    const activeTask = activeTasks.find(t => t.status === 'In Transit' || t.status === 'Assigned');
+
+    if (activeTask && !watchIdRef.current) {
+      if (navigator.geolocation) {
+        watchIdRef.current = navigator.geolocation.watchPosition(
+          async (position) => {
+            const { latitude, longitude } = position.coords;
+            try {
+              await axios.put(`${API_URL}/${activeTask._id}`, {
+                volunteerLocation: {
+                  type: 'Point',
+                  coordinates: [longitude, latitude]
+                }
+              });
+            } catch (err) {}
+          },
+          () => {},
+          { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 }
+        );
+      }
+    } else if (!activeTask && watchIdRef.current) {
+      navigator.geolocation.clearWatch(watchIdRef.current);
+      watchIdRef.current = null;
+    }
+  }, [activeTasks]);
 
   const updateStatus = async (id, newStatus, volunteerName = user.fullName, extraData = {}) => {
     try {
       await axios.put(`${API_URL}/${id}`, { status: newStatus, volunteer: volunteerName, ...extraData });
-      fetchListings();
+      await fetchListings();
     } catch (err) {
-      console.error('Error updating status:', err);
       alert('Failed to update status');
     }
   };
@@ -175,6 +216,7 @@ const VolunteerDashboard = () => {
     await updateStatus(deliveryData.listingId, 'Picked Up', user.fullName, { deliveryPhoto: deliveryData.photoUrl });
     setShowDeliveryModal(false);
   };
+
 
   return (
     <div className="bg-light min-vh-100">
@@ -352,8 +394,19 @@ const VolunteerDashboard = () => {
                                           <CheckCircle size={14} /> Complete
                                         </button>
                                       )}
-                                      <button className="action-btn view" onClick={() => setViewingMap(item)}>
-                                        <MapPin size={14} /> Map
+                                      <button
+                                        className="action-btn view"
+                                        onClick={() => {
+                                          if (viewingMapId === item._id) {
+                                            setViewingMap(null);
+                                            setViewingMapId(null);
+                                          } else {
+                                            setViewingMap(item);
+                                            setViewingMapId(item._id);
+                                          }
+                                        }}
+                                      >
+                                        <MapPin size={14} /> {viewingMapId === item._id ? 'Hide Map' : 'Track'}
                                       </button>
                                     </div>
                                   </td>
@@ -363,6 +416,73 @@ const VolunteerDashboard = () => {
                           </table>
                         )}
                       </div>
+
+                      {/* Inline expandable tracking map */}
+                      {viewingMap && (
+                        <div className="animate-in p-3 border-top" style={{ background: 'linear-gradient(135deg, #f8faff 0%, #eef2ff 100%)' }}>
+                          <div className="d-flex justify-content-between align-items-center mb-3">
+                            <div>
+                              <div className="fw-bold text-dark">
+                                <MapPin size={16} className="me-1 text-primary" />
+                                Live Tracking — {viewingMap.item}
+                              </div>
+                              <div className="text-muted small mt-1">
+                                Routing from your current location → Donor pickup point
+                              </div>
+                            </div>
+                            <div className="d-flex gap-2 align-items-center">
+                              <StatusBadge status={viewingMap.status} />
+                              <button
+                                className="action-btn reject"
+                                style={{ padding: '4px 12px', fontSize: '12px' }}
+                                onClick={() => { setViewingMap(null); setViewingMapId(null); }}
+                              >
+                                ✕ Close
+                              </button>
+                            </div>
+                          </div>
+
+                          <div className="d-flex gap-3 mb-3">
+                            <div className="flex-fill p-2 bg-white rounded-3 border small">
+                              <span className="text-muted d-block" style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.8px' }}>YOUR LOCATION (START)</span>
+                              <span className="fw-medium">
+                                {viewingMap.volunteerLocation?.coordinates
+                                  ? `${viewingMap.volunteerLocation.coordinates[1].toFixed(4)}°N, ${viewingMap.volunteerLocation.coordinates[0].toFixed(4)}°E`
+                                  : 'Locating via GPS...'}
+                              </span>
+                            </div>
+                            <div className="d-flex align-items-center text-muted px-1">→</div>
+                            <div className="flex-fill p-2 bg-white rounded-3 border small">
+                              <span className="text-muted d-block" style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.8px' }}>DONOR LOCATION (DESTINATION)</span>
+                              <span className="fw-medium">{viewingMap.location?.address || 'Pickup Point'}</span>
+                            </div>
+                          </div>
+
+                          <div className="rounded-4 overflow-hidden border shadow-sm" style={{ height: '360px' }}>
+                            <TrackingMap
+                              status={viewingMap.status}
+                              donorLocation={viewingMap.location?.coordinates}
+                              volunteerLocation={viewingMap.volunteerLocation?.coordinates}
+                              onRouteInfo={setRouteInfo}
+                            />
+                          </div>
+
+                          <div className="mt-3 pt-3 border-top d-flex gap-4 justify-content-center">
+                            <div className="text-center">
+                              <div className="text-muted fw-bold" style={{ fontSize: '10px', letterSpacing: '0.8px' }}>ETA</div>
+                              <div className="fw-bold fs-5">{routeInfo.duration ? Math.ceil(routeInfo.duration / 60) : '—'} <span className="small fw-normal text-muted">min</span></div>
+                            </div>
+                            <div className="text-center">
+                              <div className="text-muted fw-bold" style={{ fontSize: '10px', letterSpacing: '0.8px' }}>DISTANCE</div>
+                              <div className="fw-bold fs-5">{routeInfo.distance ? (routeInfo.distance / 1000).toFixed(1) : '—'} <span className="small fw-normal text-muted">km</span></div>
+                            </div>
+                            <div className="text-center">
+                              <div className="text-muted fw-bold" style={{ fontSize: '10px', letterSpacing: '0.8px' }}>STATUS</div>
+                              <div className="fw-bold fs-5 text-success">{viewingMap.status === 'In Transit' ? 'En Route' : 'Assigned'}</div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </Card>
                   </div>
                 )}
@@ -446,56 +566,6 @@ const VolunteerDashboard = () => {
           </Col>
         </Row>
       </Container>
-
-      {/* Map / Route Placeholder Modal */}
-      <Modal show={!!viewingMap} onHide={() => setViewingMap(null)} centered size="lg" className="rounded-4">
-        <Modal.Header closeButton className="border-0 pb-0">
-          <Modal.Title className="section-title text-primary">Live Route Tracking</Modal.Title>
-        </Modal.Header>
-        <Modal.Body className="pt-3">
-          {viewingMap && (
-            <div className="text-center">
-              <div className="mb-3 d-flex justify-content-between align-items-center">
-                <div>
-                   <div className="fw-bold">{viewingMap.item}</div>
-                   <span className="text-muted small">SF-{viewingMap._id?.substring(0, 8)}</span>
-                </div>
-                <StatusBadge status={viewingMap.status} />
-              </div>
-              
-              <div className="rounded-4 bg-light d-flex flex-column align-items-center justify-content-center border" style={{ height: '300px' }}>
-                <div className="text-muted mb-3"><MapPin size={48} /></div>
-                <h5 className="fw-bold">Map View Unavailable</h5>
-                <p className="text-muted small mb-0 px-4">Interactive mapping is currently disabled in this view.</p>
-              </div>
-
-              <div className="mt-4 text-start bg-white border p-3 rounded-4 shadow-sm">
-                <div className="d-flex align-items-center mb-3">
-                  <Navigation size={20} className="me-2 text-primary" />
-                  <span className="fw-bold fs-6">Routing Info</span>
-                </div>
-                <Row className="g-3">
-                  <Col xs={4}>
-                    <div className="text-muted small fw-bold">Est. Time</div>
-                    <div className="fw-medium">15 mins</div>
-                  </Col>
-                  <Col xs={4}>
-                    <div className="text-muted small fw-bold">Distance</div>
-                    <div className="fw-medium">4.2 km</div>
-                  </Col>
-                  <Col xs={4}>
-                    <div className="text-muted small fw-bold">Traffic</div>
-                    <div className="fw-medium text-success">Light</div>
-                  </Col>
-                </Row>
-              </div>
-            </div>
-          )}
-          <button className="action-btn view w-100 py-2 mt-4 fs-6" onClick={() => setViewingMap(null)}>
-            Close Navigation
-          </button>
-        </Modal.Body>
-      </Modal>
 
       {/* Delivery Photo Modal */}
       <Modal show={showDeliveryModal} onHide={() => setShowDeliveryModal(false)} centered className="rounded-4">

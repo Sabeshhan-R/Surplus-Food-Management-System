@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Container, Row, Col, Card, Button, Table, Modal, Alert, Toast, ToastContainer, Nav, Navbar } from 'react-bootstrap';
+import { Container, Row, Col, Card, Modal, Toast, ToastContainer } from 'react-bootstrap';
 import {
   LayoutDashboard,
   ListOrdered,
@@ -14,11 +14,12 @@ import {
   X
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import axios from '../api/axios';
 import TrackingMap from '../components/TrackingMap';
+import MapComponent from '../components/MapComponent';
 import { SkeletonBox, MetricCardSkeleton, TableSkeleton, NotifSkeleton, DashboardOverviewSkeleton } from '../components/Skeleton';
 
-const API_URL = 'http://localhost:5000/api/listings';
+const API_URL = '/listings';
 
 const StatusBadge = ({ status }) => {
   let mappedClass = '';
@@ -45,7 +46,7 @@ const EmptyState = ({ icon: Icon, title, sub }) => (
 
 const NgoDashboard = () => {
   const navigate = useNavigate();
-  const [user, setUser] = useState(JSON.parse(localStorage.getItem('user')) || { fullName: 'NGO User', role: 'NGO' });
+  const [user, setUser] = useState(JSON.parse(sessionStorage.getItem('user')) || { fullName: 'NGO User', role: 'NGO' });
   const [activeTab, setActiveTab] = useState('overview');
   const [tabLoading, setTabLoading] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -55,7 +56,9 @@ const NgoDashboard = () => {
   const [myRequests, setMyRequests] = useState([]);
   const [viewingListing, setViewingListing] = useState(null);
   const [trackingItem, setTrackingItem] = useState(null);
+  const [trackingItemId, setTrackingItemId] = useState(null);
   const [showPickupModal, setShowPickupModal] = useState(false);
+  const [routeInfo, setRouteInfo] = useState({ distance: 0, duration: 0 });
   const [pickupData, setPickupData] = useState({ listingId: null, pickupTime: '' });
 
   const [notifications, setNotifications] = useState([]);
@@ -74,10 +77,10 @@ const NgoDashboard = () => {
 
   const fetchNotifications = async () => {
     try {
-      const res = await axios.get(`http://localhost:5000/api/notifications/${user.id}`);
+      const res = await axios.get(`/notifications/${user.id}`);
       setNotifications(res.data.data.notifications);
     } catch (err) {
-      console.error('Error fetching notifications:', err);
+
     } finally {
       setNotifLoading(false);
     }
@@ -85,26 +88,27 @@ const NgoDashboard = () => {
 
   const addNotification = async (text) => {
     try {
-      await axios.post('http://localhost:5000/api/notifications', { userId: user.id, text });
+      await axios.post('/notifications', { userId: user.id, text });
       fetchNotifications();
       setToastMessage(text);
       setShowToast(true);
     } catch (err) {
-      console.error('Error adding notification:', err);
+
     }
   };
 
   const clearNotification = async (id) => {
     try {
-      await axios.delete(`http://localhost:5000/api/notifications/${id}`);
+      await axios.delete(`/notifications/${id}`);
       setNotifications(prev => prev.filter(n => n._id !== id));
     } catch (err) {
-      console.error('Error clearing notification:', err);
+
     }
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('user');
+    sessionStorage.removeItem('user');
+    sessionStorage.removeItem('token');
     navigate('/auth');
   };
 
@@ -131,9 +135,15 @@ const NgoDashboard = () => {
 
       prevListingsRef.current = allListings;
       setAvailableDonations(allListings.filter(l => l.status === 'Pending'));
-      setMyRequests(allListings.filter(l => l.status === 'Assigned' || l.status === 'In Transit' || l.status === 'Picked Up'));
+      const items = allListings.filter(l => l.status === 'Assigned' || l.status === 'In Transit' || l.status === 'Picked Up');
+      setMyRequests(items);
+
+      if (trackingItemId) {
+        const updated = allListings.find(l => l._id === trackingItemId);
+        if (updated) setTrackingItem(updated);
+      }
     } catch (err) {
-      console.error('Error fetching listings:', err);
+
     } finally {
       setIsLoading(false);
     }
@@ -165,7 +175,7 @@ const NgoDashboard = () => {
       setShowPickupModal(false);
       fetchListings();
     } catch (err) {
-      console.error('Error accepting donation:', err);
+
       alert('Failed to accept donation');
     }
   };
@@ -176,7 +186,7 @@ const NgoDashboard = () => {
         await axios.put(`${API_URL}/${id}`, { status: 'Rejected', volunteer: 'Not Assigned' });
         fetchListings();
       } catch (err) {
-        console.error('Error rejecting donation:', err);
+  
         alert('Failed to reject donation');
       }
     }
@@ -400,7 +410,7 @@ const NgoDashboard = () => {
                                   <td className="small text-muted">{item.pickupTime ? new Date(item.pickupTime).toLocaleString() : 'Not Set'}</td>
                                   <td><StatusBadge status={item.status} /></td>
                                   <td>
-                                    <button className="action-btn primary" onClick={() => setTrackingItem(item)}>
+                                    <button className="action-btn primary" onClick={() => { setTrackingItem(item); setTrackingItemId(item._id); }}>
                                       <Truck size={14} /> Track Pickup
                                     </button>
                                   </td>
@@ -478,6 +488,21 @@ const NgoDashboard = () => {
                   <div className="text-muted small fw-bold mt-2">Expiry / Best Before</div>
                   <div className="fw-medium text-danger">{new Date(viewingListing.expiry).toLocaleString()}</div>
                 </Col>
+                {viewingListing.location?.address && (
+                  <Col xs={12}>
+                    <div className="text-muted small fw-bold mt-2">Pickup Address</div>
+                    <div className="fw-medium small">{viewingListing.location.address}</div>
+                  </Col>
+                )}
+                <Col xs={12} className="mt-2">
+                  <div style={{ height: '150px', borderRadius: '12px', overflow: 'hidden' }} className="border">
+                    <MapComponent 
+                      center={viewingListing.location?.coordinates || [78.1460, 11.6643]}
+                      markers={viewingListing.location?.coordinates ? [{ coordinates: viewingListing.location.coordinates, color: '#198754' }] : []}
+                      interactive={false}
+                    />
+                  </div>
+                </Col>
               </Row>
             </div>
           )}
@@ -500,7 +525,7 @@ const NgoDashboard = () => {
       </Modal>
 
       {/* Tracking Modal */}
-      <Modal show={!!trackingItem} onHide={() => setTrackingItem(null)} centered size="lg" className="rounded-4">
+      <Modal show={!!trackingItem} onHide={() => { setTrackingItem(null); setTrackingItemId(null); }} centered size="lg" className="rounded-4">
         <Modal.Header closeButton className="border-0 pb-0">
           <Modal.Title className="section-title text-primary">
             Pickup Tracker
@@ -516,7 +541,24 @@ const NgoDashboard = () => {
                 </div>
                 <StatusBadge status={trackingItem.status} />
               </div>
-              <TrackingMap status={trackingItem.status} />
+              <TrackingMap 
+                status={trackingItem.status} 
+                donorLocation={trackingItem.location.coordinates} 
+                volunteerLocation={trackingItem.volunteerLocation?.coordinates}
+                onRouteInfo={setRouteInfo}
+              />
+              <div className="mt-3 bg-white p-3 rounded-3 border">
+                <Row className="g-2 text-center">
+                  <Col xs={6}>
+                    <div className="text-muted extra-small fw-bold uppercase">Estimated Arrival</div>
+                    <div className="fw-bold text-primary">{Math.ceil(routeInfo.duration / 60)} mins</div>
+                  </Col>
+                  <Col xs={6}>
+                    <div className="text-muted extra-small fw-bold uppercase">Distance</div>
+                    <div className="fw-bold text-primary">{(routeInfo.distance / 1000).toFixed(1)} km</div>
+                  </Col>
+                </Row>
+              </div>
               <div className="mt-3 bg-light p-3 rounded-3 border">
                 <div className="d-flex align-items-center mb-1">
                    <Truck size={16} className="me-2 text-primary" />

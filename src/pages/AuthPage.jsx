@@ -10,7 +10,7 @@ const AuthPage = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const user = JSON.parse(localStorage.getItem('user'));
+    const user = JSON.parse(sessionStorage.getItem('user'));
     if (user) {
       if (user.role === 'Donor') navigate('/donor');
       else if (user.role === 'NGO') navigate('/ngo');
@@ -58,7 +58,9 @@ const AuthPage = () => {
         });
         
         const userData = response.data.data.user;
-        localStorage.setItem('user', JSON.stringify(userData));
+        const token = response.data.token;
+        sessionStorage.setItem('user', JSON.stringify(userData));
+        sessionStorage.setItem('token', token);
 
         setStatus({ 
           type: 'success', 

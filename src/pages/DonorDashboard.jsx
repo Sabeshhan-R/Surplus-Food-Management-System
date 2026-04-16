@@ -16,11 +16,12 @@ import {
   Leaf
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import axios from '../api/axios';
 import TrackingMap from '../components/TrackingMap';
+import MapComponent from '../components/MapComponent';
 import { SkeletonBox, MetricCardSkeleton, TableSkeleton, NotifSkeleton, DashboardOverviewSkeleton } from '../components/Skeleton';
 
-const API_URL = 'http://localhost:5000/api/listings';
+const API_URL = '/listings';
 
 const StatusBadge = ({ status }) => {
   let mappedClass = '';
@@ -47,7 +48,7 @@ const EmptyState = ({ icon: Icon, title, sub }) => (
 
 const DonorDashboard = () => {
   const navigate = useNavigate();
-  const [user, setUser] = useState(JSON.parse(localStorage.getItem('user')) || { fullName: 'Donor', role: 'Donor' });
+  const [user, setUser] = useState(JSON.parse(sessionStorage.getItem('user')) || { fullName: 'Donor', role: 'Donor' });
   const [activeTab, setActiveTab] = useState('overview');
   const [tabLoading, setTabLoading] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -62,13 +63,32 @@ const DonorDashboard = () => {
     quantity: '',
     type: 'Cooked Meal',
     expiry: '',
-    donorPhoto: ''
+    donorPhoto: '',
+    location: { type: 'Point', coordinates: [78.1460, 11.6643], address: '' }
   });
   const [trackingItem, setTrackingItem] = useState(null);
+  const [trackingItemId, setTrackingItemId] = useState(null);
   const [notifications, setNotifications] = useState([]);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
+  const [routeInfo, setRouteInfo] = useState({ distance: 0, duration: 0 });
+  const [currentLocation, setCurrentLocation] = useState(null);
   const prevListingsRef = useRef([]);
+
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setCurrentLocation({
+            type: 'Point',
+            coordinates: [position.coords.longitude, position.coords.latitude],
+            address: 'Detected Browser Location'
+          });
+        },
+        () => {}
+      );
+    }
+  }, []);
 
   const handleTabSwitch = (tab) => {
     if (tab === activeTab) return;
@@ -81,10 +101,10 @@ const DonorDashboard = () => {
 
   const fetchNotifications = async () => {
     try {
-      const res = await axios.get(`http://localhost:5000/api/notifications/${user.id}`);
+      const res = await axios.get(`/notifications/${user.id}`);
       setNotifications(res.data.data.notifications);
     } catch (err) {
-      console.error('Error fetching notifications:', err);
+
     } finally {
       setNotifLoading(false);
     }
@@ -92,26 +112,27 @@ const DonorDashboard = () => {
 
   const addNotification = async (text) => {
     try {
-      await axios.post('http://localhost:5000/api/notifications', { userId: user.id, text });
+      await axios.post('/notifications', { userId: user.id, text });
       fetchNotifications();
       setToastMessage(text);
       setShowToast(true);
     } catch (err) {
-      console.error('Error adding notification:', err);
+
     }
   };
 
   const clearNotification = async (id) => {
     try {
-      await axios.delete(`http://localhost:5000/api/notifications/${id}`);
+      await axios.delete(`/notifications/${id}`);
       setNotifications(prev => prev.filter(n => n._id !== id));
     } catch (err) {
-      console.error('Error clearing notification:', err);
+
     }
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('user');
+    sessionStorage.removeItem('user');
+    sessionStorage.removeItem('token');
     navigate('/auth');
   };
 
@@ -132,8 +153,13 @@ const DonorDashboard = () => {
 
       prevListingsRef.current = newListings;
       setListings(newListings);
+
+      if (trackingItemId) {
+        const updated = newListings.find(l => l._id === trackingItemId);
+        if (updated) setTrackingItem(updated);
+      }
     } catch (err) {
-      console.error('Error fetching listings:', err);
+
     } finally {
       setIsLoading(false);
     }
@@ -156,14 +182,25 @@ const DonorDashboard = () => {
         const res = await axios.put(`${API_URL}/${editingListing._id}`, formData);
         setListings(listings.map(l => l._id === editingListing._id ? res.data.data.listing : l));
       } else {
-        const res = await axios.post(API_URL, { ...formData, donor: user.id });
+        const payload = { 
+          ...formData, 
+          donor: user.id
+        };
+        const res = await axios.post(API_URL, payload);
         setListings([res.data.data.listing, ...listings]);
       }
       setShowModal(false);
       setEditingListing(null);
-      setFormData({ item: '', quantity: '', type: 'Cooked Meal', expiry: '', donorPhoto: '' });
+      setFormData({ 
+        item: '', 
+        quantity: '', 
+        type: 'Cooked Meal', 
+        expiry: '', 
+        donorPhoto: '',
+        location: { type: 'Point', coordinates: [78.1460, 11.6643], address: '' }
+      });
     } catch (err) {
-      console.error('Error saving listing:', err);
+
       alert('Failed to save listing');
     }
   };
@@ -175,14 +212,22 @@ const DonorDashboard = () => {
       quantity: listing.quantity,
       type: listing.type || 'Cooked Meal',
       expiry: listing.expiry,
-      donorPhoto: listing.donorPhoto || ''
+      donorPhoto: listing.donorPhoto || '',
+      location: listing.location || { type: 'Point', coordinates: [78.1460, 11.6643], address: '' }
     });
     setShowModal(true);
   };
 
   const handleCreateClick = () => {
     setEditingListing(null);
-    setFormData({ item: '', quantity: '', type: 'Cooked Meal', expiry: '', donorPhoto: '' });
+    setFormData({ 
+      item: '', 
+      quantity: '', 
+      type: 'Cooked Meal', 
+      expiry: '', 
+      donorPhoto: '',
+      location: currentLocation || { type: 'Point', coordinates: [78.1460, 11.6643], address: 'Location not provided' }
+    });
     setShowModal(true);
   };
 
@@ -192,7 +237,7 @@ const DonorDashboard = () => {
         await axios.delete(`${API_URL}/${id}`);
         setListings(listings.filter(listing => listing._id !== id));
       } catch (err) {
-        console.error('Error deleting listing:', err);
+
         alert('Failed to delete listing');
       }
     }
@@ -367,7 +412,7 @@ const DonorDashboard = () => {
                                         <button className="action-btn view" onClick={() => setViewingListing(item)}>View</button>
                                         <button 
                                           className={`action-btn ${item.status === 'Pending' || item.status === 'Rejected' ? 'edit opacity-50' : 'edit'}`}
-                                          onClick={() => setTrackingItem(item)}
+                                          onClick={() => { setTrackingItem(item); setTrackingItemId(item._id); }}
                                           disabled={item.status === 'Pending' || item.status === 'Rejected'}
                                         >
                                           Track
@@ -430,7 +475,7 @@ const DonorDashboard = () => {
                                       )}
                                       <button 
                                         className={`action-btn ${item.status === 'Pending' || item.status === 'Rejected' ? 'accept opacity-50' : 'accept'}`}
-                                        onClick={() => setTrackingItem(item)}
+                                        onClick={() => { setTrackingItem(item); setTrackingItemId(item._id); }}
                                         disabled={item.status === 'Pending' || item.status === 'Rejected'}
                                         title="Track"
                                       >
@@ -565,6 +610,39 @@ const DonorDashboard = () => {
               />
             </Form.Group>
 
+            <Form.Group className="mb-4">
+              <Form.Label className="small fw-bold text-muted d-flex justify-content-between">
+                Pick Location 
+                <span className="text-success cursor-pointer" style={{ cursor: 'pointer' }} onClick={() => {
+                  if (navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(
+                      (pos) => {
+                        const newLoc = { type: 'Point', coordinates: [pos.coords.longitude, pos.coords.latitude], address: formData.location.address || 'Detected Location' };
+                        setFormData({ ...formData, location: newLoc });
+                      },
+                      (err) => alert("Could not get location. Please select on map.")
+                    );
+                  }
+                }}>
+                  <MapPin size={14} className="me-1" /> Use My Location
+                </span>
+              </Form.Label>
+              <div style={{ height: '200px', borderRadius: '12px', overflow: 'hidden' }} className="border">
+                <MapComponent 
+                  center={formData.location.coordinates}
+                  onLocationSelect={(coords) => setFormData({ ...formData, location: { ...formData.location, coordinates: coords } })}
+                  markers={[{ coordinates: formData.location.coordinates, color: '#198754' }]}
+                />
+              </div>
+              <Form.Control
+                type="text"
+                placeholder="Enter landmark or address (optional)"
+                value={formData.location.address}
+                onChange={(e) => setFormData({ ...formData, location: { ...formData.location, address: e.target.value } })}
+                className="mt-2 py-2 small"
+              />
+            </Form.Group>
+
             <button type="submit" className="action-btn primary w-100 py-2 fs-6">
               {editingListing ? 'Update Listing' : 'Publish Listing'}
             </button>
@@ -606,6 +684,21 @@ const DonorDashboard = () => {
                   <div className="text-muted small fw-bold mt-2">Expiry / Best Before</div>
                   <div className="fw-medium text-danger">{new Date(viewingListing.expiry).toLocaleString()}</div>
                 </Col>
+                {viewingListing.location?.address && (
+                  <Col xs={12}>
+                    <div className="text-muted small fw-bold mt-2">Pickup Address</div>
+                    <div className="fw-medium small">{viewingListing.location.address}</div>
+                  </Col>
+                )}
+                <Col xs={12} className="mt-2">
+                  <div style={{ height: '150px', borderRadius: '12px', overflow: 'hidden' }} className="border">
+                    <MapComponent 
+                      center={viewingListing.location.coordinates}
+                      markers={[{ coordinates: viewingListing.location.coordinates, color: '#198754' }]}
+                      interactive={false}
+                    />
+                  </div>
+                </Col>
                 {viewingListing.donorPhoto && (
                   <Col xs={12}>
                     <div className="text-muted small fw-bold mt-2 mb-2">Attached Photo</div>
@@ -624,7 +717,7 @@ const DonorDashboard = () => {
       </Modal>
 
       {/* Tracking Modal */}
-      <Modal show={!!trackingItem} onHide={() => setTrackingItem(null)} centered size="lg" className="rounded-4">
+      <Modal show={!!trackingItem} onHide={() => { setTrackingItem(null); setTrackingItemId(null); }} centered size="lg" className="rounded-4">
         <Modal.Header closeButton className="border-0 pb-0">
           <Modal.Title className="section-title text-success">
             Live Delivery Tracking
@@ -640,7 +733,24 @@ const DonorDashboard = () => {
                 </div>
                 <StatusBadge status={trackingItem.status} />
               </div>
-              <TrackingMap status={trackingItem.status} />
+              <TrackingMap 
+                status={trackingItem.status} 
+                donorLocation={trackingItem.location.coordinates} 
+                volunteerLocation={trackingItem.volunteerLocation?.coordinates}
+                onRouteInfo={setRouteInfo}
+              />
+              <div className="mt-3 bg-white p-3 rounded-3 border">
+                <Row className="g-2 text-center">
+                  <Col xs={6}>
+                    <div className="text-muted extra-small fw-bold uppercase">Estimated Arrival</div>
+                    <div className="fw-bold text-primary">{Math.ceil(routeInfo.duration / 60)} mins</div>
+                  </Col>
+                  <Col xs={6}>
+                    <div className="text-muted extra-small fw-bold uppercase">Distance</div>
+                    <div className="fw-bold text-primary">{(routeInfo.distance / 1000).toFixed(1)} km</div>
+                  </Col>
+                </Row>
+              </div>
               <div className="mt-3 bg-light p-3 rounded-3 border">
                 <div className="d-flex align-items-center mb-1">
                   <Truck size={16} className="me-2 text-primary" />
